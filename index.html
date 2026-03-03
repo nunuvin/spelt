@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Spelt</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
@@ -31,6 +32,16 @@
       border-bottom: 1px solid #1f2937;
       padding-bottom: 10px;
       gap: 12px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .brand-logo {
+      width: 28px;
+      height: 28px;
+      display: block;
     }
     h1 { margin: 0; font-size: 24px; letter-spacing: 0.04em; }
     button {
@@ -64,10 +75,25 @@
       font-weight: 700;
       color: #93c5fd;
     }
-    .grid {
+    .board-area {
       margin: 0 auto;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .grid {
       display: grid;
       gap: 6px;
+    }
+    .hint-side {
+      width: 44px;
+      height: 96px;
+      background: #b45309;
+      border: 1px solid #d97706;
+      font-size: 12px;
+      text-transform: uppercase;
+      line-height: 1.1;
+      padding: 8px 6px;
     }
     .row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
     .cell {
@@ -86,20 +112,31 @@
     .yellow { background: #ca8a04; border-color: #ca8a04; }
     .gray { background: #374151; border-color: #374151; }
     .wasted { background: #111827; opacity: 0.25; }
-    .keyboard { margin-top: auto; display: grid; gap: 8px; }
-    .kbd-row { display: grid; grid-template-columns: repeat(20, minmax(0, 1fr)); gap: 6px; }
+    .keyboard {
+      margin-top: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      align-items: center;
+    }
+    .kbd-row { display: flex; justify-content: center; gap: 6px; width: 100%; }
     .key {
-      grid-column: span 2;
+      min-width: 40px;
+      width: 44px;
       height: 46px;
       background: #4b5563;
       font-size: 12px;
       text-transform: uppercase;
     }
-    .key.large { grid-column: span 4; }
-    .key.hint { background: #b45309; }
+    .key.large { width: 72px; }
     .key.gray { background: #111827; color: #9ca3af; }
     .key.green { background: #16a34a; }
     .key.yellow { background: #ca8a04; }
+    @media (max-width: 500px) {
+      .key { min-width: 32px; width: 34px; font-size: 11px; }
+      .key.large { width: 58px; }
+      .hint-side { width: 38px; height: 86px; font-size: 10px; }
+    }
     .overlay {
       position: fixed;
       inset: 0;
@@ -128,12 +165,18 @@
 <body>
   <div class="app">
     <div class="top">
-      <h1>WORDLE PRO</h1>
+      <div class="brand">
+        <img class="brand-logo" src="favicon.svg" alt="Spelt logo" />
+        <h1>WORDLE PRO</h1>
+      </div>
       <button class="reset" id="resetBtn">RESET</button>
     </div>
     <div class="lists" id="listButtons"></div>
     <div class="status" id="status"></div>
-    <div class="grid" id="grid"></div>
+    <div class="board-area">
+      <div class="grid" id="grid"></div>
+      <button class="hint-side" id="hintBtn">Hint</button>
+    </div>
     <div class="keyboard" id="keyboard"></div>
   </div>
 
@@ -178,7 +221,7 @@
     const KEYBOARD_ROWS = [
       ["q","w","e","r","t","y","u","i","o","p"],
       ["a","s","d","f","g","h","j","k","l"],
-      ["Enter","z","x","c","v","b","n","m","Backspace","Hint"]
+      ["Enter","z","x","c","v","b","n","m","Backspace"]
     ];
 
     const state = {
@@ -198,6 +241,7 @@
     const statusEl = document.getElementById("status");
     const gridEl = document.getElementById("grid");
     const keyboardEl = document.getElementById("keyboard");
+    const hintBtn = document.getElementById("hintBtn");
     const listButtonsEl = document.getElementById("listButtons");
     const resetBtn = document.getElementById("resetBtn");
     const overlay = document.getElementById("overlay");
@@ -316,8 +360,7 @@
           const button = document.createElement("button");
           const status = statuses[key.toLowerCase()];
           button.className = "key";
-          if (key === "Enter" || key === "Backspace" || key === "Hint") button.classList.add("large");
-          if (key === "Hint") button.classList.add("hint");
+          if (key === "Enter" || key === "Backspace") button.classList.add("large");
           if (status === "green" || status === "yellow" || status === "gray") button.classList.add(status);
           button.textContent = key === "Backspace" ? "DEL" : key;
           button.disabled = state.loading || state.gameStatus !== "playing";
@@ -346,6 +389,7 @@
       renderKeyboard();
       updateOverlay();
       resetBtn.disabled = state.loading;
+      hintBtn.disabled = state.loading || state.gameStatus !== "playing";
       if (state.loading) statusEl.textContent = "Loading list...";
     }
 
@@ -507,6 +551,7 @@
     });
 
     resetBtn.addEventListener("click", initNewGame);
+    hintBtn.addEventListener("click", onHint);
 
     render();
     initNewGame();
