@@ -3,174 +3,406 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Spelt</title>
+  <title>SPELT</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg" />
   <style>
-    :root { color-scheme: dark; }
+    :root {
+      /* Dark Theme (Default) */
+      --bg-color: #0f172a;
+      --text-color: #f8fafc;
+      --surface: #1e293b;
+      --border: #334155;
+      --overlay-bg: rgba(15, 23, 42, 0.95);
+      
+      /* Inactive keyboard keys */
+      --key-bg: #1f2937;
+      --key-fg: #f8fafc;
+      --key-hover: #334155;
+      --key-unused-bg: #030617; /* much darker for unused keys on dark theme */
+      --key-unused-fg: #6b7280; /* muted text for low contrast */
+      
+      --grid-border: #334155;
+      --grid-filled-border: #94a3b8;
+      
+      --green: #22c55e;
+      --yellow: #eab308;
+      --gray: #334155;
+      --hint: #f59e0b;
+      --hint-border: #d97706;
+      
+      --font-stack: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+
+    [data-theme="light"] {
+      /* Light Theme */
+      --bg-color: #f8fafc;
+      --text-color: #0f172a;
+      --surface: #ffffff;
+      --border: #cbd5e1;
+      --overlay-bg: rgba(248, 250, 252, 0.95);
+      
+      --key-bg: #e2e8f0;
+      --key-fg: #0f172a;
+      --key-hover: #cbd5e1;
+      --key-unused-bg: #f1f5f9; /* subtle light for unused keys */
+      --key-unused-fg: #94a3b8;
+      
+      --grid-border: #e2e8f0;
+      --grid-filled-border: #64748b;
+      
+      --green: #16a34a;
+      --yellow: #ca8a04;
+      --gray: #94a3b8;
+      --hint: #d97706;
+      --hint-border: #b45309;
+    }
+
     * { box-sizing: border-box; }
+    
     body {
       margin: 0;
-      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-      background: #030712;
-      color: #fff;
+      font-family: var(--font-stack);
+      background: var(--bg-color);
+      color: var(--text-color);
       min-height: 100vh;
       display: flex;
       justify-content: center;
+      transition: background 0.3s, color 0.3s;
     }
+
     .app {
-      width: min(760px, 100%);
+      width: min(720px, 100%);
       padding: 16px;
-      display: flex;
-      flex-direction: column;
-      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto auto auto 1fr auto;
+      height: 100svh;
       gap: 14px;
     }
+
     .top {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      border-bottom: 1px solid #1f2937;
-      padding-bottom: 10px;
-      gap: 12px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
     }
+
     .brand {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 12px;
     }
+
     .brand-logo {
-      width: 28px;
-      height: 28px;
+      width: 32px;
+      height: 32px;
       display: block;
     }
-    h1 { margin: 0; font-size: 24px; letter-spacing: 0.04em; }
-    button {
-      border: none;
-      border-radius: 8px;
-      color: #fff;
-      cursor: pointer;
-      font-weight: 700;
+
+    h1 {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
     }
-    .reset { background: #1f2937; padding: 8px 12px; font-size: 12px; }
-    .lists {
+
+    .controls {
       display: flex;
       gap: 8px;
-      overflow-x: auto;
-      padding-bottom: 4px;
     }
+
+    button {
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      font-family: inherit;
+      transition: all 0.2s;
+    }
+
+    .icon-btn {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text-color);
+      width: 36px;
+      height: 36px;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .icon-btn:hover { background: var(--border); }
+    .icon-btn svg { width: 18px; height: 18px; }
+
+    .reset {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text-color);
+      padding: 0 12px;
+      height: 36px;
+      font-size: 13px;
+    }
+    .reset:hover { background: var(--border); }
+
+    .lists {
+      display: flex;
+      gap: 4px;
+      overflow-x: auto;
+      padding: 4px;
+      border-radius: 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      scrollbar-width: none; /* Firefox */
+    }
+    .lists::-webkit-scrollbar { display: none; } /* Chrome/Safari */
+
     .lists button {
-      background: #111827;
-      border: 1px solid #374151;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-color);
       padding: 8px 12px;
       white-space: nowrap;
-      font-size: 12px;
+      font-size: 11px;
       text-transform: uppercase;
+      opacity: 0.9;
+      border-radius: 9999px;
+      line-height: 1;
     }
-    .lists button.active { background: #4f46e5; border-color: #6366f1; }
+    .lists button:hover {
+      opacity: 1;
+      background: var(--border);
+    }
+    .lists button:focus-visible {
+      outline: 2px solid var(--text-color);
+      outline-offset: 2px;
+      opacity: 1;
+    }
+    .lists button.active {
+      background: var(--text-color);
+      color: var(--bg-color);
+      border-color: var(--text-color);
+      opacity: 1;
+    }
+
+    .def-links {
+      margin-top: 14px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      color: var(--text-color);
+      opacity: 0.9;
+    }
+    .def-links a {
+      color: inherit;
+      text-decoration: none;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 2px;
+    }
+    .def-links a:hover { border-bottom-color: var(--text-color); opacity: 1; }
+
     .status {
-      min-height: 38px;
       display: flex;
       align-items: center;
       justify-content: center;
       font-weight: 700;
-      color: #93c5fd;
+      color: var(--text-color);
+      font-size: 14px;
     }
+
+    /* Game Board Area */
     .board-area {
-      margin: 0 auto;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .grid {
-      display: grid;
-      gap: 6px;
-    }
-    .hint-side {
-      width: 44px;
-      height: 96px;
-      background: #b45309;
-      border: 1px solid #d97706;
-      font-size: 12px;
-      text-transform: uppercase;
-      line-height: 1.1;
-      padding: 8px 6px;
-    }
-    .row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
-    .cell {
-      width: clamp(50px, 12vw, 62px);
-      height: clamp(50px, 12vw, 62px);
-      border: 2px solid #374151;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: clamp(22px, 5vw, 30px);
-      font-weight: 800;
-      text-transform: uppercase;
+      min-height: 0;
+      padding: 6px 0;
     }
-    .filled { border-color: #9ca3af; }
-    .green { background: #16a34a; border-color: #16a34a; }
-    .yellow { background: #ca8a04; border-color: #ca8a04; }
-    .gray { background: #374151; border-color: #374151; }
-    .wasted { background: #111827; opacity: 0.25; }
+
+    .board {
+      --gap: 6px;
+      --cell: clamp(46px, min(10vw, 9vh), 66px);
+
+      width: calc(var(--cell) * 5 + var(--gap) * 4);
+      display: grid;
+      gap: 12px;
+      align-content: start;
+    }
+
+    .grid {
+      display: grid;
+      gap: var(--gap);
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: repeat(5, var(--cell));
+      gap: var(--gap);
+    }
+
+    .cell {
+      width: var(--cell);
+      height: var(--cell);
+      border: 2px solid var(--grid-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: calc(var(--cell) * 0.56);
+      font-weight: bold;
+      text-transform: uppercase;
+      user-select: none;
+      color: var(--text-color);
+    }
+
+    .cell.filled { border-color: var(--grid-filled-border); animation: pop 0.1s; }
+    
+    .cell.green { background: var(--green); border-color: var(--green); color: white; }
+    .cell.yellow { background: var(--yellow); border-color: var(--yellow); color: white; }
+    .cell.gray { background: var(--gray); border-color: var(--gray); color: white; }
+    .cell.wasted { background: var(--surface); border-color: var(--grid-border); opacity: 0.25; }
+
+    @keyframes pop { 50% { transform: scale(1.1); } }
+
+    .hint-side {
+      width: 100%;
+      height: 44px;
+      align-self: start;
+      background: var(--surface);
+      border: 1px solid var(--hint-border);
+      color: var(--hint);
+      border-radius: 8px;
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-size: 12px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .hint-side:hover:not(:disabled) {
+      background: var(--hint);
+      color: white;
+      border-color: var(--hint);
+    }
+    .hint-side svg { width: 18px; height: 18px; }
+    .hint-side:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    .hint-price {
+      margin-left: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--hint);
+      background: transparent;
+      padding: 2px 6px;
+      border-radius: 8px;
+      opacity: 0.95;
+    }
+
+    /* Keyboard */
     .keyboard {
-      margin-top: auto;
+      width: 100%;
+      max-width: 680px;
+      margin: 0 auto;
       display: flex;
       flex-direction: column;
       gap: 8px;
-      align-items: center;
-      max-width: 600px;
-      width: 100%;
+      padding-bottom: env(safe-area-inset-bottom, 16px);
     }
-    .kbd-row { display: flex; gap: 6px; width: 100%; justify-content: center; }
+
+    .kbd-row {
+      display: flex;
+      width: 100%;
+      gap: 6px;
+      justify-content: center;
+    }
+
     .key {
-      flex: 1 1 40px;
-      height: 46px;
-      background: #4b5563;
-      font-size: 12px;
-      text-transform: uppercase;
+      flex: 1;
+      height: clamp(52px, 7vh, 62px);
+      background: var(--key-bg);
+      color: var(--key-fg);
       border-radius: 4px;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-      transition: all 0.1s ease;
-      cursor: pointer;
+      font-size: 14px;
+      font-weight: 700;
+      text-transform: uppercase;
       display: flex;
       align-items: center;
       justify-content: center;
-      border: none;
+      user-select: none;
+      touch-action: manipulation;
+      border: 1px solid rgba(0, 0, 0, 0.06);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
     }
-    .key:hover:not(:disabled) { background: #5b6472; }
-    .key:active:not(:disabled) { transform: scale(0.95); }
-    .key.large { flex: 2 1 60px; }
-    .key.gray { background: #111827; color: #9ca3af; }
-    .key.green { background: #16a34a; }
-    .key.yellow { background: #ca8a04; }
-    @media (max-width: 500px) {
-      .key { flex-basis: 32px; height: 42px; font-size: 11px; }
-      .key.large { flex-basis: 50px; }
-      .hint-side { width: 38px; height: 86px; font-size: 10px; }
-    }
+
+    .key:hover:not(:disabled) { background: var(--key-hover); }
+    .key:disabled { opacity: 0.55; cursor: not-allowed; box-shadow: none; }
+
+    .key:active { transform: translateY(1px); }
+    .key.large { flex: 1.5; font-size: 11px; }
+    
+    .key.green { background: var(--green); color: white; }
+    .key.yellow { background: var(--yellow); color: white; }
+    .key.gray { background: var(--key-unused-bg); color: var(--key-unused-fg); }
+    .key.gray:hover:not(:disabled) { background: var(--key-unused-bg); }
+
+    /* Overlay */
     .overlay {
       position: fixed;
       inset: 0;
-      background: rgba(3, 7, 18, 0.92);
-      display: none;
+      background: var(--overlay-bg);
+      display: flex;
       align-items: center;
       justify-content: center;
-      z-index: 5;
+      z-index: 50;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
     }
-    .overlay.show { display: flex; }
+    .overlay.show { opacity: 1; pointer-events: auto; }
+
     .panel {
-      width: min(92vw, 360px);
-      padding: 24px;
-      border: 1px solid #374151;
+      background: var(--bg-color);
+      border: 1px solid var(--border);
+      padding: 32px;
       border-radius: 16px;
-      background: #111827;
       text-align: center;
+      min-width: 300px;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
     }
-    .title { margin: 0 0 8px; font-size: 34px; font-weight: 900; }
-    .victory { color: #22c55e; }
-    .defeat { color: #ef4444; }
-    .subtle { color: #9ca3af; }
-    .word { font-size: 28px; letter-spacing: 0.2em; font-weight: 900; }
+
+    .title { font-size: 32px; font-weight: 900; margin: 0 0 16px; }
+    .victory { color: var(--green); }
+    .defeat { color: var(--text-color); }
+    
+    .word-reveal {
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      margin: 16px 0;
+      padding: 12px;
+      background: var(--surface);
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+
+    .next-round {
+      margin-top: 24px;
+      font-size: 12px;
+      color: var(--grid-filled-border);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    @media (max-height: 700px) {
+      .app { gap: 8px; padding: 8px; }
+      .top { padding-bottom: 8px; }
+      h1 { font-size: 20px; }
+      .board { --cell: clamp(38px, min(9vw, 7vh), 56px); }
+      .key { height: 44px; font-size: 13px; }
+      .board-area { gap: 8px; }
+    }
   </style>
 </head>
 <body>
@@ -178,15 +410,28 @@
     <div class="top">
       <div class="brand">
         <img class="brand-logo" src="favicon.svg" alt="Spelt logo" />
-        <h1>WORDLE PRO</h1>
+        <h1>SPELT</h1>
       </div>
-      <button class="reset" id="resetBtn">RESET</button>
+      <div class="controls">
+        <button class="icon-btn" id="themeBtn" aria-label="Toggle Theme">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="5"/><path d="M12 1v2"/><path d="M12 21v2"/><path d="M4.22 4.22l1.42 1.42"/><path d="M18.36 18.36l1.42 1.42"/><path d="M1 12h2"/><path d="M21 12h2"/><path d="M4.22 19.78l1.42-1.42"/><path d="M18.36 5.64l1.42-1.42"/>
+          </svg>
+        </button>
+        <button class="reset" id="resetBtn">RESET</button>
+      </div>
     </div>
     <div class="lists" id="listButtons"></div>
     <div class="status" id="status"></div>
     <div class="board-area">
-      <div class="grid" id="grid"></div>
-      <button class="hint-side" id="hintBtn">Hint</button>
+      <div class="board">
+        <div class="grid" id="grid"></div>
+        <button class="hint-side" id="hintBtn" title="Get a Hint">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+          <span>Hint</span>
+          <span class="hint-price" id="hintPrice">(1 row)</span>
+        </button>
+      </div>
     </div>
     <div class="keyboard" id="keyboard"></div>
   </div>
@@ -200,15 +445,8 @@
   </div>
 
   <script>
-    // Internal word list removed. Default will use external '16k.txt'.
-
-    const EXTERNAL_LISTS = [
-        "6k.txt"
-        ,"16k.txt"
-        ,"knuth_5k.txt"
-        ,"wordle.txt"
-
-    ];
+    // Configuration
+    const EXTERNAL_LISTS = ["wordle.txt", "16k.txt", "knuth_5k.txt", "6k.txt"];
     const KEYBOARD_ROWS = [
       ["q","w","e","r","t","y","u","i","o","p"],
       ["a","s","d","f","g","h","j","k","l"],
@@ -216,7 +454,7 @@
     ];
 
     const state = {
-      listType: "16k.txt",
+      listType: "wordle.txt",
       cachedLists: {},
       targetWord: "",
       guesses: [],
@@ -226,21 +464,50 @@
       loading: false,
       hintCount: 0,
       messageTimer: null,
-      countdownTimer: null
+      countdownTimer: null,
+      theme: localStorage.getItem('theme') || 'dark'
     };
 
+    // DOM Elements
     const statusEl = document.getElementById("status");
     const gridEl = document.getElementById("grid");
     const keyboardEl = document.getElementById("keyboard");
     const hintBtn = document.getElementById("hintBtn");
     const listButtonsEl = document.getElementById("listButtons");
     const resetBtn = document.getElementById("resetBtn");
+    const themeBtn = document.getElementById("themeBtn");
     const overlay = document.getElementById("overlay");
     const resultTitle = document.getElementById("resultTitle");
     const resultText = document.getElementById("resultText");
     const nextRound = document.getElementById("nextRound");
 
+    // Initialize Theme
+    document.documentElement.setAttribute('data-theme', state.theme);
+    updateThemeIcon();
+
+    function toggleTheme() {
+      state.theme = state.theme === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', state.theme);
+      localStorage.setItem('theme', state.theme);
+      updateThemeIcon();
+    }
+
+    function updateThemeIcon() {
+      if (state.theme === 'light') {
+        // Sun icon for light mode
+        themeBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2"/><path d="M12 21v2"/><path d="M4.22 4.22l1.42 1.42"/><path d="M18.36 18.36l1.42 1.42"/><path d="M1 12h2"/><path d="M21 12h2"/><path d="M4.22 19.78l1.42-1.42"/><path d="M18.36 5.64l1.42-1.42"/></svg>';
+        themeBtn.title = "Switch to Dark Mode";
+      } else {
+        // Moon icon for dark mode
+        themeBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
+        themeBtn.title = "Switch to Light Mode";
+      }
+    }
+
+    themeBtn.addEventListener('click', toggleTheme);
+
     function formatListLabel(filename) {
+      if (!filename) return "UNKNOWN";
       return filename.split(".")[0].replace(/[_-]/g, " ").toUpperCase();
     }
 
@@ -309,11 +576,24 @@
       const won = state.gameStatus === "won";
       resultTitle.textContent = won ? "VICTORY" : "DEFEAT";
       resultTitle.className = `title ${won ? "victory" : "defeat"}`;
+
+      const word = state.targetWord;
+      const encodedWord = encodeURIComponent(word);
+      const wikiUrl = `https://en.wikipedia.org/wiki/${encodedWord}`;
+      const dictUrl = `https://www.vocabulary.com/dictionary/${encodedWord}`;
+      const linksHtml = `
+        <div class="def-links">
+          <a href="${wikiUrl}" target="_blank" rel="noopener noreferrer">Wiki</a>
+          &nbsp;|&nbsp;
+          <a href="${dictUrl}" target="_blank" rel="noopener noreferrer">Dictionary</a>
+        </div>
+      `;
+
       if (won) {
         const attempts = state.guesses.filter(word => word !== "_____").length;
-        resultText.innerHTML = `<p class="subtle">Found in <strong>${attempts}</strong> attempts!</p>`;
+        resultText.innerHTML = `<p class="subtle">Found in <strong>${attempts}</strong> attempts!</p>${linksHtml}`;
       } else {
-        resultText.innerHTML = `<p class="subtle">The word was</p><div class="word">${state.targetWord}</div>`;
+        resultText.innerHTML = `<p class="subtle">The word was</p><div class="word">${word}</div>${linksHtml}`;
       }
       nextRound.textContent = `Next round in ${state.countdown}s...`;
     }
@@ -352,7 +632,9 @@
           const status = statuses[key.toLowerCase()];
           button.className = "key";
           if (key === "Enter" || key === "Backspace") button.classList.add("large");
-          if (status === "green" || status === "yellow" || status === "gray") button.classList.add(status);
+          if (status === "green" || status === "yellow" || status === "gray") {
+            button.classList.add(status);
+          }
           button.textContent = key === "Backspace" ? "DEL" : key;
           button.disabled = state.loading || state.gameStatus !== "playing";
           button.addEventListener("click", () => onKeyPress(key));
@@ -380,6 +662,14 @@
       updateOverlay();
       resetBtn.disabled = state.loading;
       hintBtn.disabled = state.loading || state.gameStatus !== "playing";
+
+      // Update hint price display: first hint costs 1 row, then increases
+      const priceEl = document.getElementById('hintPrice');
+      if (priceEl) {
+        const rowsRequired = 1 + state.hintCount;
+        priceEl.textContent = `(${rowsRequired} row${rowsRequired > 1 ? 's' : ''})`;
+      }
+
       if (state.loading) statusEl.textContent = "Loading list...";
     }
 
