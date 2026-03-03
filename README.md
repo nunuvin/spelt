@@ -12,9 +12,10 @@ Spelt is a web-based recreation of the popular word-guessing game Wordle. Guess 
 
 ## Features
 
-- Daily word challenges
-- Responsive design
-- Works on desktop and mobile browsers
+- No login
+- Responsive
+- dark/light theme
+- unlimited play
 
 ## Getting Started
 
