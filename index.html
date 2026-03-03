@@ -29,6 +29,7 @@
       --gray: #334155;
       --hint: #f59e0b;
       --hint-border: #d97706;
+      --hint-cost: #ef4444;
       
       --font-stack: 'Inter', system-ui, -apple-system, sans-serif;
     }
@@ -55,6 +56,7 @@
       --gray: #94a3b8;
       --hint: #d97706;
       --hint-border: #b45309;
+      --hint-cost: #dc2626;
     }
 
     * { box-sizing: border-box; }
@@ -300,6 +302,17 @@
       opacity: 0.95;
     }
 
+    .hint-cost-numeral {
+      color: var(--hint-cost);
+    }
+
+    .hint-side:hover .hint-price {
+      color: white;
+    }
+    .hint-side:hover .hint-cost-numeral {
+      color: black;
+    }
+
     /* Keyboard */
     .keyboard {
       width: 100%;
@@ -429,7 +442,7 @@
         <button class="hint-side" id="hintBtn" title="Get a Hint">
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
           <span>Hint</span>
-          <span class="hint-price" id="hintPrice">(1 row)</span>
+          <span class="hint-price" id="hintPrice">[ I ] row</span>
         </button>
       </div>
     </div>
@@ -580,7 +593,7 @@
       const word = state.targetWord;
       const encodedWord = encodeURIComponent(word);
       const wikiUrl = `https://en.wikipedia.org/wiki/${encodedWord}`;
-      const dictUrl = `https://www.vocabulary.com/dictionary/${encodedWord}`;
+      const dictUrl = `https://wordnik.com/words/${encodedWord}`;
       const linksHtml = `
         <div class="def-links">
           <a href="${wikiUrl}" target="_blank" rel="noopener noreferrer">Wiki</a>
@@ -655,19 +668,57 @@
       }
     }
 
+    function toRoman(number) {
+      const value = Math.max(0, Math.floor(Number(number) || 0));
+      if (value <= 0) return "";
+      const map = [
+        [1000, "M"],
+        [900, "CM"],
+        [500, "D"],
+        [400, "CD"],
+        [100, "C"],
+        [90, "XC"],
+        [50, "L"],
+        [40, "XL"],
+        [10, "X"],
+        [9, "IX"],
+        [5, "V"],
+        [4, "IV"],
+        [1, "I"],
+      ];
+      let remaining = value;
+      let result = "";
+      for (const [amount, symbol] of map) {
+        while (remaining >= amount) {
+          result += symbol;
+          remaining -= amount;
+        }
+      }
+      return result;
+    }
+
+    function nextHintRowsRequired() {
+      return 1 + state.hintCount;
+    }
+
+    function nextHintWouldEndGame() {
+      return state.guesses.length + nextHintRowsRequired() >= 6;
+    }
+
     function render() {
       renderListButtons();
       renderGrid();
       renderKeyboard();
       updateOverlay();
       resetBtn.disabled = state.loading;
-      hintBtn.disabled = state.loading || state.gameStatus !== "playing";
+      hintBtn.disabled = state.loading || state.gameStatus !== "playing" || nextHintWouldEndGame();
 
       // Update hint price display: first hint costs 1 row, then increases
       const priceEl = document.getElementById('hintPrice');
-      if (priceEl) {
-        const rowsRequired = 1 + state.hintCount;
-        priceEl.textContent = `(${rowsRequired} row${rowsRequired > 1 ? 's' : ''})`;
+        if (priceEl) {
+        const rowsRequired = nextHintRowsRequired();
+        const roman = toRoman(rowsRequired);
+        priceEl.innerHTML = `[ <span class="hint-cost-numeral">${roman}</span> ] row${rowsRequired > 1 ? 's' : ''}`;
       }
 
       if (state.loading) statusEl.textContent = "Loading list...";
@@ -753,7 +804,7 @@
         return;
       }
 
-      const rowsRequired = 1 + state.hintCount;
+      const rowsRequired = nextHintRowsRequired();
       if (state.guesses.length + rowsRequired >= 6) {
         showMessage("Hint would end the game!");
         return;
