@@ -1,444 +1,515 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-
-// Hardcoded fallback list used as the "Standard" option
-const INTERNAL_WORD_LIST = [
-  "about", "above", "acute", "adapt", "admit", "after", "again", "agent", "agree", "ahead",
-  "alarm", "album", "alert", "alike", "alive", "allow", "alone", "along", "alter", "among",
-  "anger", "angle", "angry", "apart", "apple", "apply", "arena", "argue", "arise", "array",
-  "aside", "asset", "audio", "audit", "avoid", "award", "aware", "awful", "badly", "baker",
-  "basic", "basis", "beach", "beard", "beast", "begin", "being", "below", "bench", "birth",
-  "black", "blade", "blank", "blast", "blend", "block", "blood", "board", "boast", "bonus",
-  "boost", "bound", "brain", "brake", "brand", "brave", "bread", "break", "brief", "bring",
-  "broad", "brown", "build", "built", "buyer", "cable", "calmly", "camel", "canal", "candy",
-  "cards", "carry", "catch", "cause", "chain", "chair", "chalk", "chart", "chase", "cheap",
-  "check", "chest", "chief", "child", "china", "choir", "civil", "claim", "class", "clean",
-  "clear", "climb", "clock", "close", "cloud", "coach", "coast", "color", "count", "court",
-  "cover", "craft", "crane", "crash", "cream", "crime", "cross", "crowd", "crown", "curve",
-  "cycle", "daily", "dance", "death", "debut", "delay", "depth", "dirty", "doubt", "draft",
-  "drama", "dream", "dress", "drift", "drill", "drink", "drive", "drove", "dying", "eager",
-  "early", "earth", "eight", "elite", "empty", "enemy", "enjoy", "enter", "entry", "equal",
-  "error", "event", "every", "exact", "exist", "extra", "faith", "false", "fault", "fiber",
-  "field", "fifth", "fifty", "fight", "final", "first", "fixed", "flash", "fleet", "floor",
-  "fluid", "focus", "force", "forth", "forty", "forum", "found", "frame", "frank", "fraud",
-  "fresh", "front", "fruit", "fully", "funny", "giant", "glass", "globe", "glory", "glove",
-  "grace", "grade", "grand", "grant", "graph", "grass", "great", "green", "greet", "gross",
-  "group", "grown", "guard", "guess", "guest", "guide", "habit", "happy", "heart", "heavy",
-  "hence", "hobby", "hotel", "house", "human", "ideal", "image", "index", "inner", "input",
-  "issue", "joint", "judge", "juice", "knife", "knock", "label", "labor", "large", "laser",
-  "later", "laugh", "layer", "learn", "lease", "least", "leave", "legal", "lemon", "level",
-  "light", "limit", "links", "liver", "local", "logic", "loose", "lower", "lucky", "lunch",
-  "lying", "magic", "major", "maker", "march", "match", "maybe", "mayor", "meant", "media",
-  "metal", "might", "minor", "minus", "mixed", "model", "money", "month", "moral", "motor",
-  "mount", "mouse", "mouth", "movie", "music", "newly", "night", "noise", "north", "noted",
-  "novel", "nurse", "occur", "ocean", "offer", "often", "order", "other", "ought", "outer",
-  "owner", "panel", "paper", "party", "peace", "phase", "phone", "photo", "piece", "pilot",
-  "pitch", "place", "plain", "plane", "plant", "plate", "point", "pound", "power", "press",
-  "price", "pride", "prime", "print", "prior", "prize", "proof", "proud", "prove", "queen",
-  "quick", "quiet", "quite", "radio", "raise", "range", "rapid", "ratio", "reach", "ready",
-  "refer", "right", "rival", "river", "rough", "round", "route", "royal", "rural", "scale",
-  "scene", "scope", "score", "sense", "serve", "seven", "shade", "shaft", "shake", "share",
-  "sharp", "sheet", "shelf", "shell", "shift", "shirt", "shock", "shoot", "short", "shown",
-  "sight", "since", "sixth", "sixty", "sized", "skill", "sleep", "slide", "small", "smart",
-  "smile", "smoke", "solid", "solve", "sound", "south", "space", "spare", "speak", "speed",
-  "spend", "spent", "split", "spoke", "sport", "staff", "stage", "stake", "stand", "start",
-  "state", "steam", "steel", "stick", "still", "stock", "stone", "stood", "store", "storm",
-  "story", "strip", "stuck", "study", "stuff", "style", "sugar", "suite", "super", "sweet",
-  "table", "taken", "taste", "teach", "teeth", "terry", "theme", "there", "thick", "thing",
-  "think", "third", "those", "three", "throw", "tight", "times", "tired", "title", "today",
-  "topic", "total", "touch", "tough", "tower", "track", "trade", "train", "treat", "trend",
-  "trial", "tried", "tries", "truck", "trust", "truth", "twice", "under", "undue", "union",
-  "unity", "until", "upper", "upset", "urban", "usage", "usual", "valid", "value", "video",
-  "virus", "visit", "vital", "voice", "waste", "watch", "water", "wheel", "where", "which",
-  "while", "white", "whole", "whose", "woman", "world", "worry", "worth", "would", "wound",
-  "write", "wrong", "yield", "young", "youth"
-];
-
-/**
- * DYNAMIC LIST CONFIGURATION
- * Add the filenames of your .txt files here. 
- * Ensure they are inside a folder named 'lists' in your public directory.
- */
-const EXTERNAL_LISTS = [
-  "knuth_5k.txt",
-  "16k.txt"
-];
-
-// Helper to format filename to a readable button label
-const formatListLabel = (filename) => {
-  return filename
-    .split('.')[0]         // remove .txt
-    .replace(/[_-]/g, ' ') // replace underscores/hyphens with spaces
-    .toUpperCase();        // capitalize
-};
-
-const KEYBOARD_ROWS = [
-  ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'],
-  ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l'],
-  ['Enter', 'z', 'x', 'c', 'v', 'b', 'n', 'm', 'Backspace', 'Hint']
-];
-
-export default function App() {
-  const [listType, setListType] = useState('standard'); // 'standard' or index of EXTERNAL_LISTS
-  const [cachedLists, setCachedLists] = useState({ standard: INTERNAL_WORD_LIST });
-  const [targetWord, setTargetWord] = useState('');
-  const [guesses, setGuesses] = useState([]);
-  const [currentGuess, setCurrentGuess] = useState('');
-  const [gameStatus, setGameStatus] = useState('playing');
-  const [message, setMessage] = useState('');
-  const [shakeRow, setShakeRow] = useState(false);
-  const [countdown, setCountdown] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [hintCount, setHintCount] = useState(0);
-
-  const activeList = useMemo(() => {
-    return cachedLists[listType] || INTERNAL_WORD_LIST;
-  }, [listType, cachedLists]);
-
-  const loadListFile = useCallback(async (filename) => {
-    const path = `lists/${filename}`;
-    setIsLoading(true);
-    try {
-      const response = await fetch(path);
-      if (!response.ok) throw new Error(`Could not find ${path}`);
-      
-      const text = await response.text();
-      const words = text.split(/[\s\n\r]+/)
-        .map(w => w.trim().toLowerCase())
-        .filter(w => /^[a-z]{5}$/.test(w));
-      
-      if (words.length === 0) throw new Error("Parsed list is empty");
-      
-      setCachedLists(prev => ({ ...prev, [filename]: words }));
-      setIsLoading(false);
-      showMessage(`${formatListLabel(filename)} Loaded`);
-    } catch (err) {
-      console.error("Local fetch error:", err);
-      setListType('standard');
-      setIsLoading(false);
-      showMessage(`Error loading ${filename}. Using Standard.`);
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spelt</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: #030712;
+      color: #fff;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
     }
-  }, []);
-
-  useEffect(() => {
-    if (listType !== 'standard' && !cachedLists[listType]) {
-      loadListFile(listType);
+    .app {
+      width: min(760px, 100%);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      gap: 14px;
     }
-  }, [listType, cachedLists, loadListFile]);
-
-  const initNewGame = useCallback(() => {
-    if (activeList.length === 0) return;
-    const randomWord = activeList[Math.floor(Math.random() * activeList.length)];
-    setTargetWord(randomWord);
-    setGuesses([]);
-    setCurrentGuess('');
-    setGameStatus('playing');
-    setMessage('');
-    setCountdown(null);
-    setHintCount(0);
-  }, [activeList]);
-
-  useEffect(() => {
-    initNewGame();
-  }, [initNewGame]);
-
-  useEffect(() => {
-    if (countdown === null) return;
-    if (countdown <= 0) {
-      initNewGame();
-      return;
+    .top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #1f2937;
+      padding-bottom: 10px;
+      gap: 12px;
     }
-    const timer = setTimeout(() => setCountdown(prev => prev - 1), 1000);
-    return () => clearTimeout(timer);
-  }, [countdown, initNewGame]);
+    h1 { margin: 0; font-size: 24px; letter-spacing: 0.04em; }
+    button {
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      cursor: pointer;
+      font-weight: 700;
+    }
+    .reset { background: #1f2937; padding: 8px 12px; font-size: 12px; }
+    .lists {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+    .lists button {
+      background: #111827;
+      border: 1px solid #374151;
+      padding: 8px 12px;
+      white-space: nowrap;
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+    .lists button.active { background: #4f46e5; border-color: #6366f1; }
+    .status {
+      min-height: 38px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      color: #93c5fd;
+    }
+    .grid {
+      margin: 0 auto;
+      display: grid;
+      gap: 6px;
+    }
+    .row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+    .cell {
+      width: clamp(50px, 12vw, 62px);
+      height: clamp(50px, 12vw, 62px);
+      border: 2px solid #374151;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: clamp(22px, 5vw, 30px);
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+    .filled { border-color: #9ca3af; }
+    .green { background: #16a34a; border-color: #16a34a; }
+    .yellow { background: #ca8a04; border-color: #ca8a04; }
+    .gray { background: #374151; border-color: #374151; }
+    .wasted { background: #111827; opacity: 0.25; }
+    .keyboard { margin-top: auto; display: grid; gap: 8px; }
+    .kbd-row { display: grid; grid-template-columns: repeat(20, minmax(0, 1fr)); gap: 6px; }
+    .key {
+      grid-column: span 2;
+      height: 46px;
+      background: #4b5563;
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+    .key.large { grid-column: span 4; }
+    .key.hint { background: #b45309; }
+    .key.gray { background: #111827; color: #9ca3af; }
+    .key.green { background: #16a34a; }
+    .key.yellow { background: #ca8a04; }
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(3, 7, 18, 0.92);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 5;
+    }
+    .overlay.show { display: flex; }
+    .panel {
+      width: min(92vw, 360px);
+      padding: 24px;
+      border: 1px solid #374151;
+      border-radius: 16px;
+      background: #111827;
+      text-align: center;
+    }
+    .title { margin: 0 0 8px; font-size: 34px; font-weight: 900; }
+    .victory { color: #22c55e; }
+    .defeat { color: #ef4444; }
+    .subtle { color: #9ca3af; }
+    .word { font-size: 28px; letter-spacing: 0.2em; font-weight: 900; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="top">
+      <h1>WORDLE PRO</h1>
+      <button class="reset" id="resetBtn">RESET</button>
+    </div>
+    <div class="lists" id="listButtons"></div>
+    <div class="status" id="status"></div>
+    <div class="grid" id="grid"></div>
+    <div class="keyboard" id="keyboard"></div>
+  </div>
 
-  const showMessage = (msg, duration = 2000) => {
-    setMessage(msg);
-    if (duration > 0) setTimeout(() => setMessage(''), duration);
-  };
+  <div class="overlay" id="overlay">
+    <div class="panel">
+      <h2 class="title" id="resultTitle"></h2>
+      <div id="resultText"></div>
+      <p class="subtle" id="nextRound"></p>
+    </div>
+  </div>
 
-  const getGuessResult = (guess, target) => {
-    if (guess === "_____") return Array(5).fill('wasted');
-    const result = Array(5).fill('gray');
-    const targetArr = target.split('');
-    const guessArr = guess.split('');
+  <script>
+    const INTERNAL_WORD_LIST = [
+      "about","above","acute","adapt","admit","after","again","agent","agree","ahead","alarm","album","alert","alike","alive","allow","alone","along","alter","among",
+      "anger","angle","angry","apart","apple","apply","arena","argue","arise","array","aside","asset","audio","audit","avoid","award","aware","awful","badly","baker",
+      "basic","basis","beach","beard","beast","begin","being","below","bench","birth","black","blade","blank","blast","blend","block","blood","board","boast","bonus",
+      "boost","bound","brain","brake","brand","brave","bread","break","brief","bring","broad","brown","build","built","buyer","cable","camel","canal","candy","carry",
+      "catch","cause","chain","chair","chalk","chart","chase","cheap","check","chest","chief","child","china","choir","civil","claim","class","clean","clear","climb",
+      "clock","close","cloud","coach","coast","color","count","court","cover","craft","crane","crash","cream","crime","cross","crowd","crown","curve","cycle","daily",
+      "dance","death","debut","delay","depth","dirty","doubt","draft","drama","dream","dress","drift","drill","drink","drive","drove","dying","eager","early","earth",
+      "eight","elite","empty","enemy","enjoy","enter","entry","equal","error","event","every","exact","exist","extra","faith","false","fault","fiber","field","fifth",
+      "fifty","fight","final","first","fixed","flash","fleet","floor","fluid","focus","force","forth","forty","forum","found","frame","frank","fraud","fresh","front",
+      "fruit","fully","funny","giant","glass","globe","glory","glove","grace","grade","grand","grant","graph","grass","great","green","greet","gross","group","grown",
+      "guard","guess","guest","guide","habit","happy","heart","heavy","hence","hobby","hotel","house","human","ideal","image","index","inner","input","issue","joint",
+      "judge","juice","knife","knock","label","labor","large","laser","later","laugh","layer","learn","lease","least","leave","legal","lemon","level","light","limit",
+      "links","liver","local","logic","loose","lower","lucky","lunch","lying","magic","major","maker","march","match","maybe","mayor","meant","media","metal","might",
+      "minor","minus","mixed","model","money","month","moral","motor","mount","mouse","mouth","movie","music","newly","night","noise","north","noted","novel","nurse",
+      "occur","ocean","offer","often","order","other","ought","outer","owner","panel","paper","party","peace","phase","phone","photo","piece","pilot","pitch","place",
+      "plain","plane","plant","plate","point","pound","power","press","price","pride","prime","print","prior","prize","proof","proud","prove","queen","quick","quiet",
+      "quite","radio","raise","range","rapid","ratio","reach","ready","refer","right","rival","river","rough","round","route","royal","rural","scale","scene","scope",
+      "score","sense","serve","seven","shade","shaft","shake","share","sharp","sheet","shelf","shell","shift","shirt","shock","shoot","short","shown","sight","since",
+      "sixth","sixty","sized","skill","sleep","slide","small","smart","smile","smoke","solid","solve","sound","south","space","spare","speak","speed","spend","spent",
+      "split","spoke","sport","staff","stage","stake","stand","start","state","steam","steel","stick","still","stock","stone","stood","store","storm","story","strip",
+      "stuck","study","stuff","style","sugar","suite","super","sweet","table","taken","taste","teach","teeth","terry","theme","there","thick","thing","think","third",
+      "those","three","throw","tight","times","tired","title","today","topic","total","touch","tough","tower","track","trade","train","treat","trend","trial","tried",
+      "tries","truck","trust","truth","twice","under","undue","union","unity","until","upper","upset","urban","usage","usual","valid","value","video","virus","visit",
+      "vital","voice","waste","watch","water","wheel","where","which","while","white","whole","whose","woman","world","worry","worth","would","wound","write","wrong",
+      "yield","young","youth"
+    ];
 
-    for (let i = 0; i < 5; i++) {
-      if (guessArr[i] === targetArr[i]) {
-        result[i] = 'green';
-        targetArr[i] = null;
-        guessArr[i] = null;
+    const EXTERNAL_LISTS = ["knuth_5k.txt", "16k.txt"];
+    const KEYBOARD_ROWS = [
+      ["q","w","e","r","t","y","u","i","o","p"],
+      ["a","s","d","f","g","h","j","k","l"],
+      ["Enter","z","x","c","v","b","n","m","Backspace","Hint"]
+    ];
+
+    const state = {
+      listType: "standard",
+      cachedLists: { standard: INTERNAL_WORD_LIST },
+      targetWord: "",
+      guesses: [],
+      currentGuess: "",
+      gameStatus: "playing",
+      countdown: null,
+      loading: false,
+      hintCount: 0,
+      messageTimer: null,
+      countdownTimer: null
+    };
+
+    const statusEl = document.getElementById("status");
+    const gridEl = document.getElementById("grid");
+    const keyboardEl = document.getElementById("keyboard");
+    const listButtonsEl = document.getElementById("listButtons");
+    const resetBtn = document.getElementById("resetBtn");
+    const overlay = document.getElementById("overlay");
+    const resultTitle = document.getElementById("resultTitle");
+    const resultText = document.getElementById("resultText");
+    const nextRound = document.getElementById("nextRound");
+
+    function formatListLabel(filename) {
+      return filename.split(".")[0].replace(/[_-]/g, " ").toUpperCase();
+    }
+
+    function activeList() {
+      return state.cachedLists[state.listType] || INTERNAL_WORD_LIST;
+    }
+
+    function showMessage(msg, duration = 2000) {
+      clearTimeout(state.messageTimer);
+      statusEl.textContent = msg || "";
+      if (duration > 0) {
+        state.messageTimer = setTimeout(() => {
+          statusEl.textContent = "";
+        }, duration);
       }
     }
 
-    for (let i = 0; i < 5; i++) {
-      if (guessArr[i] !== null) {
-        const index = targetArr.indexOf(guessArr[i]);
-        if (index !== -1) {
-          result[i] = 'yellow';
+    function getGuessResult(guess, target) {
+      if (guess === "_____") return Array(5).fill("wasted");
+      const result = Array(5).fill("gray");
+      const targetArr = target.split("");
+      const guessArr = guess.split("");
+
+      for (let index = 0; index < 5; index += 1) {
+        if (guessArr[index] === targetArr[index]) {
+          result[index] = "green";
+          guessArr[index] = null;
           targetArr[index] = null;
         }
       }
-    }
-    return result;
-  };
 
-  const checkWinLoss = (lastGuess, allGuesses) => {
-    if (lastGuess === targetWord) {
-      setGameStatus('won');
-      setCountdown(5);
-    } else if (allGuesses.length >= 6) {
-      setGameStatus('lost');
-      setCountdown(5);
-    }
-  };
-
-  const onKeyPress = useCallback((key) => {
-    if (gameStatus !== 'playing' || isLoading) return;
-
-    if (key === 'Hint') {
-      onHint();
-      return;
+      for (let index = 0; index < 5; index += 1) {
+        if (guessArr[index] !== null) {
+          const found = targetArr.indexOf(guessArr[index]);
+          if (found !== -1) {
+            result[index] = "yellow";
+            targetArr[found] = null;
+          }
+        }
+      }
+      return result;
     }
 
-    if (key === 'Backspace') {
-      setCurrentGuess(prev => prev.slice(0, -1));
-      return;
+    function letterStatuses() {
+      const map = {};
+      for (const guess of state.guesses) {
+        if (guess === "_____") continue;
+        const scores = getGuessResult(guess, state.targetWord);
+        guess.split("").forEach((char, index) => {
+          const score = scores[index];
+          const current = map[char];
+          if (score === "green") map[char] = "green";
+          else if (score === "yellow" && current !== "green") map[char] = "yellow";
+          else if (score === "gray" && !current) map[char] = "gray";
+        });
+      }
+      return map;
     }
 
-    if (key === 'Enter') {
-      if (currentGuess.length !== 5) {
-        showMessage("Not enough letters");
-        setShakeRow(true);
-        setTimeout(() => setShakeRow(false), 500);
+    function updateOverlay() {
+      if (state.countdown === null) {
+        overlay.classList.remove("show");
         return;
       }
+      overlay.classList.add("show");
+      const won = state.gameStatus === "won";
+      resultTitle.textContent = won ? "VICTORY" : "DEFEAT";
+      resultTitle.className = `title ${won ? "victory" : "defeat"}`;
+      if (won) {
+        const attempts = state.guesses.filter(word => word !== "_____").length;
+        resultText.innerHTML = `<p class="subtle">Found in <strong>${attempts}</strong> attempts!</p>`;
+      } else {
+        resultText.innerHTML = `<p class="subtle">The word was</p><div class="word">${state.targetWord}</div>`;
+      }
+      nextRound.textContent = `Next round in ${state.countdown}s...`;
+    }
 
-      if (!activeList.includes(currentGuess)) {
-        showMessage("Word not in list");
-        setShakeRow(true);
-        setTimeout(() => setShakeRow(false), 500);
-        return;
+    function renderGrid() {
+      gridEl.innerHTML = "";
+      for (let row = 0; row < 6; row += 1) {
+        const rowEl = document.createElement("div");
+        rowEl.className = "row";
+        const isCurrent = row === state.guesses.length;
+        const guessStr = isCurrent ? state.currentGuess : (state.guesses[row] || "");
+        const scores = state.guesses[row] ? getGuessResult(state.guesses[row], state.targetWord) : Array(5).fill("empty");
+
+        for (let col = 0; col < 5; col += 1) {
+          const char = guessStr[col] || "";
+          const score = scores[col];
+          const cell = document.createElement("div");
+          cell.className = "cell";
+          if (char && score === "empty") cell.classList.add("filled");
+          if (score !== "empty") cell.classList.add(score);
+          if (score !== "wasted") cell.textContent = char;
+          rowEl.appendChild(cell);
+        }
+        gridEl.appendChild(rowEl);
+      }
+    }
+
+    function renderKeyboard() {
+      keyboardEl.innerHTML = "";
+      const statuses = letterStatuses();
+      for (const row of KEYBOARD_ROWS) {
+        const rowEl = document.createElement("div");
+        rowEl.className = "kbd-row";
+        for (const key of row) {
+          const button = document.createElement("button");
+          const status = statuses[key.toLowerCase()];
+          button.className = "key";
+          if (key === "Enter" || key === "Backspace" || key === "Hint") button.classList.add("large");
+          if (key === "Hint") button.classList.add("hint");
+          if (status === "green" || status === "yellow" || status === "gray") button.classList.add(status);
+          button.textContent = key === "Backspace" ? "DEL" : key;
+          button.disabled = state.loading || state.gameStatus !== "playing";
+          button.addEventListener("click", () => onKeyPress(key));
+          rowEl.appendChild(button);
+        }
+        keyboardEl.appendChild(rowEl);
+      }
+    }
+
+    function renderListButtons() {
+      listButtonsEl.innerHTML = "";
+      const all = [{ key: "standard", label: "STANDARD" }, ...EXTERNAL_LISTS.map(name => ({ key: name, label: formatListLabel(name) }))];
+      for (const item of all) {
+        const button = document.createElement("button");
+        button.textContent = item.label;
+        if (state.listType === item.key) button.classList.add("active");
+        button.addEventListener("click", () => setListType(item.key));
+        listButtonsEl.appendChild(button);
+      }
+    }
+
+    function render() {
+      renderListButtons();
+      renderGrid();
+      renderKeyboard();
+      updateOverlay();
+      resetBtn.disabled = state.loading;
+      if (state.loading) statusEl.textContent = "Loading list...";
+    }
+
+    function initNewGame() {
+      const words = activeList();
+      if (!words.length) return;
+      state.targetWord = words[Math.floor(Math.random() * words.length)];
+      state.guesses = [];
+      state.currentGuess = "";
+      state.gameStatus = "playing";
+      state.hintCount = 0;
+      state.countdown = null;
+      clearInterval(state.countdownTimer);
+      state.countdownTimer = null;
+      showMessage("");
+      render();
+    }
+
+    async function loadListFile(filename) {
+      state.loading = true;
+      render();
+      try {
+        const response = await fetch(`lists/${filename}`);
+        if (!response.ok) throw new Error("Missing word list");
+        const text = await response.text();
+        const words = text
+          .split(/[\s\n\r]+/)
+          .map(item => item.trim().toLowerCase())
+          .filter(item => /^[a-z]{5}$/.test(item));
+        if (!words.length) throw new Error("No valid words in list");
+        state.cachedLists[filename] = words;
+        showMessage(`${formatListLabel(filename)} loaded`);
+      } catch (error) {
+        console.error(error);
+        state.listType = "standard";
+        showMessage(`Error loading ${filename}. Using STANDARD.`);
+      } finally {
+        state.loading = false;
+        initNewGame();
+      }
+    }
+
+    function checkWinLoss(lastGuess) {
+      if (lastGuess === state.targetWord) {
+        state.gameStatus = "won";
+        state.countdown = 5;
+      } else if (state.guesses.length >= 6) {
+        state.gameStatus = "lost";
+        state.countdown = 5;
       }
 
-      const nextGuesses = [...guesses, currentGuess];
-      setGuesses(nextGuesses);
-      setCurrentGuess('');
-      checkWinLoss(currentGuess, nextGuesses);
-      return;
+      if (state.countdown !== null) {
+        clearInterval(state.countdownTimer);
+        state.countdownTimer = setInterval(() => {
+          state.countdown -= 1;
+          if (state.countdown <= 0) {
+            clearInterval(state.countdownTimer);
+            state.countdownTimer = null;
+            initNewGame();
+            return;
+          }
+          render();
+        }, 1000);
+      }
     }
 
-    if (/^[a-zA-Z]$/.test(key) && currentGuess.length < 5) {
-      setCurrentGuess(prev => prev + key.toLowerCase());
-    }
-  }, [currentGuess, gameStatus, guesses, targetWord, activeList, isLoading, hintCount]);
+    function onHint() {
+      if (state.gameStatus !== "playing" || state.loading) return;
 
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.ctrlKey || e.metaKey || e.altKey) return;
-      onKeyPress(e.key);
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onKeyPress]);
-
-  const letterStatuses = useMemo(() => {
-    const map = {};
-    guesses.forEach(g => {
-      if (g === "_____") return;
-      const scores = getGuessResult(g, targetWord);
-      g.split('').forEach((char, i) => {
-        const current = map[char];
-        const score = scores[i];
-        if (score === 'green') map[char] = 'green';
-        else if (score === 'yellow' && current !== 'green') map[char] = 'yellow';
-        else if (score === 'gray' && !current) map[char] = 'gray';
+      const knownGreens = Array(5).fill(false);
+      state.guesses.forEach(guess => {
+        if (guess === "_____") return;
+        for (let index = 0; index < 5; index += 1) {
+          if (guess[index] === state.targetWord[index]) knownGreens[index] = true;
+        }
       });
-    });
-    return map;
-  }, [guesses, targetWord]);
 
-  const onHint = () => {
-    if (gameStatus !== 'playing' || isLoading) return;
-
-    const knownGreens = Array(5).fill(false);
-    guesses.forEach(g => {
-      if (g === "_____") return;
-      for (let i = 0; i < 5; i++) {
-        if (g[i] === targetWord[i]) knownGreens[i] = true;
+      const unknown = knownGreens.map((known, index) => (known ? -1 : index)).filter(index => index >= 0);
+      if (!unknown.length) {
+        showMessage("Correct positions known!");
+        return;
       }
-    });
 
-    const unknownIndices = [];
-    knownGreens.forEach((isGreen, i) => {
-      if (!isGreen) unknownIndices.push(i);
-    });
+      const rowsRequired = 1 + state.hintCount;
+      if (state.guesses.length + rowsRequired >= 6) {
+        showMessage("Hint would end the game!");
+        return;
+      }
 
-    if (unknownIndices.length === 0) {
-      showMessage("Correct positions known!");
-      return;
-    }
+      const position = unknown[Math.floor(Math.random() * unknown.length)];
+      const letter = state.targetWord[position];
+      const hintWords = activeList().filter(word => word[position] === letter);
+      if (!hintWords.length) {
+        showMessage("No valid hint available.");
+        return;
+      }
 
-    const rowsRequired = 1 + hintCount;
-    if (guesses.length + rowsRequired >= 6) {
-      showMessage("Hint would end the game!");
-      return;
-    }
-
-    const indexToHelp = unknownIndices[Math.floor(Math.random() * unknownIndices.length)];
-    const correctLetter = targetWord[indexToHelp];
-    const hintWords = activeList.filter(w => w[indexToHelp] === correctLetter);
-    
-    if (hintWords.length > 0) {
       const hintWord = hintWords[Math.floor(Math.random() * hintWords.length)];
-      const newGuesses = [...guesses, hintWord];
-      for (let i = 0; i < hintCount; i++) {
-        newGuesses.push("_____");
+      state.guesses.push(hintWord);
+      for (let count = 0; count < state.hintCount; count += 1) state.guesses.push("_____");
+      state.hintCount += 1;
+      state.currentGuess = "";
+      showMessage(`Hint used ${rowsRequired} row(s)`);
+      checkWinLoss(hintWord);
+      render();
+    }
+
+    function onKeyPress(key) {
+      if (state.gameStatus !== "playing" || state.loading) return;
+
+      if (key === "Hint") {
+        onHint();
+        return;
       }
 
-      setGuesses(newGuesses);
-      setHintCount(prev => prev + 1);
-      setCurrentGuess('');
-      showMessage(`Hint used ${rowsRequired} row(s)`);
-      checkWinLoss(hintWord, newGuesses);
+      if (key === "Backspace") {
+        state.currentGuess = state.currentGuess.slice(0, -1);
+        renderGrid();
+        return;
+      }
+
+      if (key === "Enter") {
+        if (state.currentGuess.length !== 5) {
+          showMessage("Not enough letters");
+          return;
+        }
+        if (!activeList().includes(state.currentGuess)) {
+          showMessage("Word not in list");
+          return;
+        }
+        state.guesses.push(state.currentGuess);
+        const submitted = state.currentGuess;
+        state.currentGuess = "";
+        checkWinLoss(submitted);
+        render();
+        return;
+      }
+
+      if (/^[a-zA-Z]$/.test(key) && state.currentGuess.length < 5) {
+        state.currentGuess += key.toLowerCase();
+        renderGrid();
+      }
     }
-  };
 
-  return (
-    <div className="flex flex-col items-center min-h-screen bg-gray-950 text-white font-sans p-4 select-none relative">
-      <header className="w-full max-w-md flex flex-col items-center border-b border-gray-800 pb-4 mb-4 space-y-3">
-        <div className="flex justify-between w-full items-center">
-          <h1 className="text-2xl font-bold tracking-tighter">WORDLE PRO</h1>
-          <button 
-            onClick={initNewGame}
-            className="text-[10px] bg-gray-800 px-3 py-1.5 rounded font-bold hover:bg-gray-700 transition-colors"
-          >
-            RESET
-          </button>
-        </div>
+    function setListType(type) {
+      if (state.loading || state.listType === type) return;
+      state.listType = type;
+      renderListButtons();
+      if (type !== "standard" && !state.cachedLists[type]) {
+        loadListFile(type);
+      } else {
+        initNewGame();
+      }
+    }
 
-        {/* Dynamic Wordlist Toggles */}
-        <div className="flex bg-gray-900 p-1 rounded-lg w-full text-[10px] sm:text-xs font-bold border border-gray-800 gap-1 overflow-x-auto no-scrollbar">
-          <button 
-            onClick={() => setListType('standard')}
-            className={`min-w-[80px] flex-1 py-1.5 rounded-md transition-all uppercase whitespace-nowrap ${listType === 'standard' ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-400'}`}
-          >
-            STANDARD
-          </button>
-          {EXTERNAL_LISTS.map((filename) => (
-            <button 
-              key={filename}
-              onClick={() => setListType(filename)}
-              className={`min-w-[80px] flex-1 py-1.5 rounded-md transition-all uppercase whitespace-nowrap ${listType === filename ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-400'}`}
-            >
-              {formatListLabel(filename)}
-            </button>
-          ))}
-        </div>
-      </header>
+    document.addEventListener("keydown", event => {
+      if (event.ctrlKey || event.metaKey || event.altKey) return;
+      onKeyPress(event.key);
+    });
 
-      {/* Summary Overlay */}
-      {countdown !== null && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-gray-950/90 backdrop-blur-md transition-opacity duration-500">
-          <div className="bg-gray-900 border border-gray-700 p-8 rounded-2xl shadow-2xl text-center max-w-xs w-full">
-            <h2 className={`text-4xl font-black mb-2 ${gameStatus === 'won' ? 'text-green-500' : 'text-red-500'}`}>
-              {gameStatus === 'won' ? 'VICTORY' : 'DEFEAT'}
-            </h2>
-            <div className="text-gray-400 mb-6 font-medium">
-              {gameStatus === 'won' ? (
-                <p>Found in <span className="text-white font-bold">{guesses.filter(g => g !== "_____").length}</span> attempts!</p>
-              ) : (
-                <p>The word was <span className="text-white font-bold uppercase tracking-widest block text-2xl mt-2">{targetWord}</span></p>
-              )}
-            </div>
-            <div className="space-y-4">
-              <div className="h-1 bg-gray-800 rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-indigo-500 transition-all duration-1000 ease-linear"
-                  style={{ width: `${(countdown / 5) * 100}%` }}
-                ></div>
-              </div>
-              <p className="text-xs text-gray-500 uppercase tracking-widest">Next round in {countdown}s...</p>
-            </div>
-          </div>
-        </div>
-      )}
+    resetBtn.addEventListener("click", initNewGame);
 
-      {/* Loader / Message Area */}
-      <div className="h-10 mb-4 flex items-center">
-        {isLoading ? (
-          <div className="text-indigo-400 text-sm animate-pulse font-bold uppercase tracking-widest flex items-center gap-2">
-            <div className="w-2 h-2 bg-indigo-500 rounded-full animate-ping"></div>
-            Loading List...
-          </div>
-        ) : message && (
-          <div className="bg-white text-black px-4 py-1.5 rounded font-bold text-sm shadow-xl">
-            {message}
-          </div>
-        )}
-      </div>
-
-      {/* The Grid */}
-      <div className="grid grid-rows-6 gap-1.5 mb-8">
-        {[...Array(6)].map((_, i) => {
-          const isCurrent = i === guesses.length;
-          const guessStr = isCurrent ? currentGuess : (guesses[i] || "");
-          const scores = guesses[i] ? getGuessResult(guesses[i], targetWord) : Array(5).fill('empty');
-          
-          return (
-            <div key={i} className={`flex gap-1.5 ${isCurrent && shakeRow ? 'animate-pulse' : ''}`}>
-              {[...Array(5)].map((_, j) => {
-                const char = guessStr[j] || "";
-                const score = scores[j];
-                let bgClass = "border-gray-700";
-                
-                if (score === "green") bgClass = "bg-green-600 border-green-600";
-                else if (score === "yellow") bgClass = "bg-yellow-600 border-yellow-600";
-                else if (score === "gray") bgClass = "bg-gray-800 border-gray-800";
-                else if (score === "wasted") bgClass = "bg-gray-900 border-gray-800 opacity-20";
-                else if (char) bgClass = "border-gray-500 scale-105";
-
-                return (
-                  <div 
-                    key={j} 
-                    className={`w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center text-3xl font-bold uppercase border-2 transition-all duration-300 ${bgClass}`}
-                  >
-                    {score !== "wasted" ? char : ""}
-                  </div>
-                );
-              })}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Virtual Keyboard */}
-      <div className="w-full max-w-xl mt-auto pb-4">
-        {KEYBOARD_ROWS.map((row, i) => (
-          <div key={i} className="flex justify-center mb-2 gap-1 px-1">
-            {row.map(key => {
-              const status = letterStatuses[key.toLowerCase()];
-              let btnColor = "bg-gray-600";
-              if (key === "Hint") btnColor = "bg-amber-600";
-              else if (status === "green") btnColor = "bg-green-600";
-              else if (status === "yellow") btnColor = "bg-yellow-600";
-              else if (status === "gray") btnColor = "bg-gray-900 text-gray-500";
-
-              const isLarge = key === "Enter" || key === "Backspace" || key === "Hint";
-
-              return (
-                <button
-                  key={key}
-                  onClick={() => onKeyPress(key)}
-                  disabled={countdown !== null || isLoading}
-                  className={`${isLarge ? 'px-2 sm:px-4 flex-[1.6]' : 'flex-1'} h-12 sm:h-14 rounded font-bold uppercase text-[10px] sm:text-sm ${btnColor} transition-colors active:opacity-60 shadow-md disabled:opacity-50`}
-                >
-                  {key === "Backspace" ? "DEL" : key}
-                </button>
-              );
-            })}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
+    render();
+    initNewGame();
+  </script>
+</body>
+</html>
