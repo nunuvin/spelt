@@ -1,0 +1,444 @@
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+
+// Hardcoded fallback list used as the "Standard" option
+const INTERNAL_WORD_LIST = [
+  "about", "above", "acute", "adapt", "admit", "after", "again", "agent", "agree", "ahead",
+  "alarm", "album", "alert", "alike", "alive", "allow", "alone", "along", "alter", "among",
+  "anger", "angle", "angry", "apart", "apple", "apply", "arena", "argue", "arise", "array",
+  "aside", "asset", "audio", "audit", "avoid", "award", "aware", "awful", "badly", "baker",
+  "basic", "basis", "beach", "beard", "beast", "begin", "being", "below", "bench", "birth",
+  "black", "blade", "blank", "blast", "blend", "block", "blood", "board", "boast", "bonus",
+  "boost", "bound", "brain", "brake", "brand", "brave", "bread", "break", "brief", "bring",
+  "broad", "brown", "build", "built", "buyer", "cable", "calmly", "camel", "canal", "candy",
+  "cards", "carry", "catch", "cause", "chain", "chair", "chalk", "chart", "chase", "cheap",
+  "check", "chest", "chief", "child", "china", "choir", "civil", "claim", "class", "clean",
+  "clear", "climb", "clock", "close", "cloud", "coach", "coast", "color", "count", "court",
+  "cover", "craft", "crane", "crash", "cream", "crime", "cross", "crowd", "crown", "curve",
+  "cycle", "daily", "dance", "death", "debut", "delay", "depth", "dirty", "doubt", "draft",
+  "drama", "dream", "dress", "drift", "drill", "drink", "drive", "drove", "dying", "eager",
+  "early", "earth", "eight", "elite", "empty", "enemy", "enjoy", "enter", "entry", "equal",
+  "error", "event", "every", "exact", "exist", "extra", "faith", "false", "fault", "fiber",
+  "field", "fifth", "fifty", "fight", "final", "first", "fixed", "flash", "fleet", "floor",
+  "fluid", "focus", "force", "forth", "forty", "forum", "found", "frame", "frank", "fraud",
+  "fresh", "front", "fruit", "fully", "funny", "giant", "glass", "globe", "glory", "glove",
+  "grace", "grade", "grand", "grant", "graph", "grass", "great", "green", "greet", "gross",
+  "group", "grown", "guard", "guess", "guest", "guide", "habit", "happy", "heart", "heavy",
+  "hence", "hobby", "hotel", "house", "human", "ideal", "image", "index", "inner", "input",
+  "issue", "joint", "judge", "juice", "knife", "knock", "label", "labor", "large", "laser",
+  "later", "laugh", "layer", "learn", "lease", "least", "leave", "legal", "lemon", "level",
+  "light", "limit", "links", "liver", "local", "logic", "loose", "lower", "lucky", "lunch",
+  "lying", "magic", "major", "maker", "march", "match", "maybe", "mayor", "meant", "media",
+  "metal", "might", "minor", "minus", "mixed", "model", "money", "month", "moral", "motor",
+  "mount", "mouse", "mouth", "movie", "music", "newly", "night", "noise", "north", "noted",
+  "novel", "nurse", "occur", "ocean", "offer", "often", "order", "other", "ought", "outer",
+  "owner", "panel", "paper", "party", "peace", "phase", "phone", "photo", "piece", "pilot",
+  "pitch", "place", "plain", "plane", "plant", "plate", "point", "pound", "power", "press",
+  "price", "pride", "prime", "print", "prior", "prize", "proof", "proud", "prove", "queen",
+  "quick", "quiet", "quite", "radio", "raise", "range", "rapid", "ratio", "reach", "ready",
+  "refer", "right", "rival", "river", "rough", "round", "route", "royal", "rural", "scale",
+  "scene", "scope", "score", "sense", "serve", "seven", "shade", "shaft", "shake", "share",
+  "sharp", "sheet", "shelf", "shell", "shift", "shirt", "shock", "shoot", "short", "shown",
+  "sight", "since", "sixth", "sixty", "sized", "skill", "sleep", "slide", "small", "smart",
+  "smile", "smoke", "solid", "solve", "sound", "south", "space", "spare", "speak", "speed",
+  "spend", "spent", "split", "spoke", "sport", "staff", "stage", "stake", "stand", "start",
+  "state", "steam", "steel", "stick", "still", "stock", "stone", "stood", "store", "storm",
+  "story", "strip", "stuck", "study", "stuff", "style", "sugar", "suite", "super", "sweet",
+  "table", "taken", "taste", "teach", "teeth", "terry", "theme", "there", "thick", "thing",
+  "think", "third", "those", "three", "throw", "tight", "times", "tired", "title", "today",
+  "topic", "total", "touch", "tough", "tower", "track", "trade", "train", "treat", "trend",
+  "trial", "tried", "tries", "truck", "trust", "truth", "twice", "under", "undue", "union",
+  "unity", "until", "upper", "upset", "urban", "usage", "usual", "valid", "value", "video",
+  "virus", "visit", "vital", "voice", "waste", "watch", "water", "wheel", "where", "which",
+  "while", "white", "whole", "whose", "woman", "world", "worry", "worth", "would", "wound",
+  "write", "wrong", "yield", "young", "youth"
+];
+
+/**
+ * DYNAMIC LIST CONFIGURATION
+ * Add the filenames of your .txt files here. 
+ * Ensure they are inside a folder named 'lists' in your public directory.
+ */
+const EXTERNAL_LISTS = [
+  "knuth_5k.txt",
+  "16k.txt"
+];
+
+// Helper to format filename to a readable button label
+const formatListLabel = (filename) => {
+  return filename
+    .split('.')[0]         // remove .txt
+    .replace(/[_-]/g, ' ') // replace underscores/hyphens with spaces
+    .toUpperCase();        // capitalize
+};
+
+const KEYBOARD_ROWS = [
+  ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'],
+  ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l'],
+  ['Enter', 'z', 'x', 'c', 'v', 'b', 'n', 'm', 'Backspace', 'Hint']
+];
+
+export default function App() {
+  const [listType, setListType] = useState('standard'); // 'standard' or index of EXTERNAL_LISTS
+  const [cachedLists, setCachedLists] = useState({ standard: INTERNAL_WORD_LIST });
+  const [targetWord, setTargetWord] = useState('');
+  const [guesses, setGuesses] = useState([]);
+  const [currentGuess, setCurrentGuess] = useState('');
+  const [gameStatus, setGameStatus] = useState('playing');
+  const [message, setMessage] = useState('');
+  const [shakeRow, setShakeRow] = useState(false);
+  const [countdown, setCountdown] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [hintCount, setHintCount] = useState(0);
+
+  const activeList = useMemo(() => {
+    return cachedLists[listType] || INTERNAL_WORD_LIST;
+  }, [listType, cachedLists]);
+
+  const loadListFile = useCallback(async (filename) => {
+    const path = `lists/${filename}`;
+    setIsLoading(true);
+    try {
+      const response = await fetch(path);
+      if (!response.ok) throw new Error(`Could not find ${path}`);
+      
+      const text = await response.text();
+      const words = text.split(/[\s\n\r]+/)
+        .map(w => w.trim().toLowerCase())
+        .filter(w => /^[a-z]{5}$/.test(w));
+      
+      if (words.length === 0) throw new Error("Parsed list is empty");
+      
+      setCachedLists(prev => ({ ...prev, [filename]: words }));
+      setIsLoading(false);
+      showMessage(`${formatListLabel(filename)} Loaded`);
+    } catch (err) {
+      console.error("Local fetch error:", err);
+      setListType('standard');
+      setIsLoading(false);
+      showMessage(`Error loading ${filename}. Using Standard.`);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (listType !== 'standard' && !cachedLists[listType]) {
+      loadListFile(listType);
+    }
+  }, [listType, cachedLists, loadListFile]);
+
+  const initNewGame = useCallback(() => {
+    if (activeList.length === 0) return;
+    const randomWord = activeList[Math.floor(Math.random() * activeList.length)];
+    setTargetWord(randomWord);
+    setGuesses([]);
+    setCurrentGuess('');
+    setGameStatus('playing');
+    setMessage('');
+    setCountdown(null);
+    setHintCount(0);
+  }, [activeList]);
+
+  useEffect(() => {
+    initNewGame();
+  }, [initNewGame]);
+
+  useEffect(() => {
+    if (countdown === null) return;
+    if (countdown <= 0) {
+      initNewGame();
+      return;
+    }
+    const timer = setTimeout(() => setCountdown(prev => prev - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [countdown, initNewGame]);
+
+  const showMessage = (msg, duration = 2000) => {
+    setMessage(msg);
+    if (duration > 0) setTimeout(() => setMessage(''), duration);
+  };
+
+  const getGuessResult = (guess, target) => {
+    if (guess === "_____") return Array(5).fill('wasted');
+    const result = Array(5).fill('gray');
+    const targetArr = target.split('');
+    const guessArr = guess.split('');
+
+    for (let i = 0; i < 5; i++) {
+      if (guessArr[i] === targetArr[i]) {
+        result[i] = 'green';
+        targetArr[i] = null;
+        guessArr[i] = null;
+      }
+    }
+
+    for (let i = 0; i < 5; i++) {
+      if (guessArr[i] !== null) {
+        const index = targetArr.indexOf(guessArr[i]);
+        if (index !== -1) {
+          result[i] = 'yellow';
+          targetArr[index] = null;
+        }
+      }
+    }
+    return result;
+  };
+
+  const checkWinLoss = (lastGuess, allGuesses) => {
+    if (lastGuess === targetWord) {
+      setGameStatus('won');
+      setCountdown(5);
+    } else if (allGuesses.length >= 6) {
+      setGameStatus('lost');
+      setCountdown(5);
+    }
+  };
+
+  const onKeyPress = useCallback((key) => {
+    if (gameStatus !== 'playing' || isLoading) return;
+
+    if (key === 'Hint') {
+      onHint();
+      return;
+    }
+
+    if (key === 'Backspace') {
+      setCurrentGuess(prev => prev.slice(0, -1));
+      return;
+    }
+
+    if (key === 'Enter') {
+      if (currentGuess.length !== 5) {
+        showMessage("Not enough letters");
+        setShakeRow(true);
+        setTimeout(() => setShakeRow(false), 500);
+        return;
+      }
+
+      if (!activeList.includes(currentGuess)) {
+        showMessage("Word not in list");
+        setShakeRow(true);
+        setTimeout(() => setShakeRow(false), 500);
+        return;
+      }
+
+      const nextGuesses = [...guesses, currentGuess];
+      setGuesses(nextGuesses);
+      setCurrentGuess('');
+      checkWinLoss(currentGuess, nextGuesses);
+      return;
+    }
+
+    if (/^[a-zA-Z]$/.test(key) && currentGuess.length < 5) {
+      setCurrentGuess(prev => prev + key.toLowerCase());
+    }
+  }, [currentGuess, gameStatus, guesses, targetWord, activeList, isLoading, hintCount]);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      onKeyPress(e.key);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onKeyPress]);
+
+  const letterStatuses = useMemo(() => {
+    const map = {};
+    guesses.forEach(g => {
+      if (g === "_____") return;
+      const scores = getGuessResult(g, targetWord);
+      g.split('').forEach((char, i) => {
+        const current = map[char];
+        const score = scores[i];
+        if (score === 'green') map[char] = 'green';
+        else if (score === 'yellow' && current !== 'green') map[char] = 'yellow';
+        else if (score === 'gray' && !current) map[char] = 'gray';
+      });
+    });
+    return map;
+  }, [guesses, targetWord]);
+
+  const onHint = () => {
+    if (gameStatus !== 'playing' || isLoading) return;
+
+    const knownGreens = Array(5).fill(false);
+    guesses.forEach(g => {
+      if (g === "_____") return;
+      for (let i = 0; i < 5; i++) {
+        if (g[i] === targetWord[i]) knownGreens[i] = true;
+      }
+    });
+
+    const unknownIndices = [];
+    knownGreens.forEach((isGreen, i) => {
+      if (!isGreen) unknownIndices.push(i);
+    });
+
+    if (unknownIndices.length === 0) {
+      showMessage("Correct positions known!");
+      return;
+    }
+
+    const rowsRequired = 1 + hintCount;
+    if (guesses.length + rowsRequired >= 6) {
+      showMessage("Hint would end the game!");
+      return;
+    }
+
+    const indexToHelp = unknownIndices[Math.floor(Math.random() * unknownIndices.length)];
+    const correctLetter = targetWord[indexToHelp];
+    const hintWords = activeList.filter(w => w[indexToHelp] === correctLetter);
+    
+    if (hintWords.length > 0) {
+      const hintWord = hintWords[Math.floor(Math.random() * hintWords.length)];
+      const newGuesses = [...guesses, hintWord];
+      for (let i = 0; i < hintCount; i++) {
+        newGuesses.push("_____");
+      }
+
+      setGuesses(newGuesses);
+      setHintCount(prev => prev + 1);
+      setCurrentGuess('');
+      showMessage(`Hint used ${rowsRequired} row(s)`);
+      checkWinLoss(hintWord, newGuesses);
+    }
+  };
+
+  return (
+    <div className="flex flex-col items-center min-h-screen bg-gray-950 text-white font-sans p-4 select-none relative">
+      <header className="w-full max-w-md flex flex-col items-center border-b border-gray-800 pb-4 mb-4 space-y-3">
+        <div className="flex justify-between w-full items-center">
+          <h1 className="text-2xl font-bold tracking-tighter">WORDLE PRO</h1>
+          <button 
+            onClick={initNewGame}
+            className="text-[10px] bg-gray-800 px-3 py-1.5 rounded font-bold hover:bg-gray-700 transition-colors"
+          >
+            RESET
+          </button>
+        </div>
+
+        {/* Dynamic Wordlist Toggles */}
+        <div className="flex bg-gray-900 p-1 rounded-lg w-full text-[10px] sm:text-xs font-bold border border-gray-800 gap-1 overflow-x-auto no-scrollbar">
+          <button 
+            onClick={() => setListType('standard')}
+            className={`min-w-[80px] flex-1 py-1.5 rounded-md transition-all uppercase whitespace-nowrap ${listType === 'standard' ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-400'}`}
+          >
+            STANDARD
+          </button>
+          {EXTERNAL_LISTS.map((filename) => (
+            <button 
+              key={filename}
+              onClick={() => setListType(filename)}
+              className={`min-w-[80px] flex-1 py-1.5 rounded-md transition-all uppercase whitespace-nowrap ${listType === filename ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-400'}`}
+            >
+              {formatListLabel(filename)}
+            </button>
+          ))}
+        </div>
+      </header>
+
+      {/* Summary Overlay */}
+      {countdown !== null && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-gray-950/90 backdrop-blur-md transition-opacity duration-500">
+          <div className="bg-gray-900 border border-gray-700 p-8 rounded-2xl shadow-2xl text-center max-w-xs w-full">
+            <h2 className={`text-4xl font-black mb-2 ${gameStatus === 'won' ? 'text-green-500' : 'text-red-500'}`}>
+              {gameStatus === 'won' ? 'VICTORY' : 'DEFEAT'}
+            </h2>
+            <div className="text-gray-400 mb-6 font-medium">
+              {gameStatus === 'won' ? (
+                <p>Found in <span className="text-white font-bold">{guesses.filter(g => g !== "_____").length}</span> attempts!</p>
+              ) : (
+                <p>The word was <span className="text-white font-bold uppercase tracking-widest block text-2xl mt-2">{targetWord}</span></p>
+              )}
+            </div>
+            <div className="space-y-4">
+              <div className="h-1 bg-gray-800 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-indigo-500 transition-all duration-1000 ease-linear"
+                  style={{ width: `${(countdown / 5) * 100}%` }}
+                ></div>
+              </div>
+              <p className="text-xs text-gray-500 uppercase tracking-widest">Next round in {countdown}s...</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Loader / Message Area */}
+      <div className="h-10 mb-4 flex items-center">
+        {isLoading ? (
+          <div className="text-indigo-400 text-sm animate-pulse font-bold uppercase tracking-widest flex items-center gap-2">
+            <div className="w-2 h-2 bg-indigo-500 rounded-full animate-ping"></div>
+            Loading List...
+          </div>
+        ) : message && (
+          <div className="bg-white text-black px-4 py-1.5 rounded font-bold text-sm shadow-xl">
+            {message}
+          </div>
+        )}
+      </div>
+
+      {/* The Grid */}
+      <div className="grid grid-rows-6 gap-1.5 mb-8">
+        {[...Array(6)].map((_, i) => {
+          const isCurrent = i === guesses.length;
+          const guessStr = isCurrent ? currentGuess : (guesses[i] || "");
+          const scores = guesses[i] ? getGuessResult(guesses[i], targetWord) : Array(5).fill('empty');
+          
+          return (
+            <div key={i} className={`flex gap-1.5 ${isCurrent && shakeRow ? 'animate-pulse' : ''}`}>
+              {[...Array(5)].map((_, j) => {
+                const char = guessStr[j] || "";
+                const score = scores[j];
+                let bgClass = "border-gray-700";
+                
+                if (score === "green") bgClass = "bg-green-600 border-green-600";
+                else if (score === "yellow") bgClass = "bg-yellow-600 border-yellow-600";
+                else if (score === "gray") bgClass = "bg-gray-800 border-gray-800";
+                else if (score === "wasted") bgClass = "bg-gray-900 border-gray-800 opacity-20";
+                else if (char) bgClass = "border-gray-500 scale-105";
+
+                return (
+                  <div 
+                    key={j} 
+                    className={`w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center text-3xl font-bold uppercase border-2 transition-all duration-300 ${bgClass}`}
+                  >
+                    {score !== "wasted" ? char : ""}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Virtual Keyboard */}
+      <div className="w-full max-w-xl mt-auto pb-4">
+        {KEYBOARD_ROWS.map((row, i) => (
+          <div key={i} className="flex justify-center mb-2 gap-1 px-1">
+            {row.map(key => {
+              const status = letterStatuses[key.toLowerCase()];
+              let btnColor = "bg-gray-600";
+              if (key === "Hint") btnColor = "bg-amber-600";
+              else if (status === "green") btnColor = "bg-green-600";
+              else if (status === "yellow") btnColor = "bg-yellow-600";
+              else if (status === "gray") btnColor = "bg-gray-900 text-gray-500";
+
+              const isLarge = key === "Enter" || key === "Backspace" || key === "Hint";
+
+              return (
+                <button
+                  key={key}
+                  onClick={() => onKeyPress(key)}
+                  disabled={countdown !== null || isLoading}
+                  className={`${isLarge ? 'px-2 sm:px-4 flex-[1.6]' : 'flex-1'} h-12 sm:h-14 rounded font-bold uppercase text-[10px] sm:text-sm ${btnColor} transition-colors active:opacity-60 shadow-md disabled:opacity-50`}
+                >
+                  {key === "Backspace" ? "DEL" : key}
+                </button>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
