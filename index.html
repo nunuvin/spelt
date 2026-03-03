@@ -118,23 +118,34 @@
       flex-direction: column;
       gap: 8px;
       align-items: center;
+      max-width: 600px;
+      width: 100%;
     }
-    .kbd-row { display: flex; justify-content: center; gap: 6px; width: 100%; }
+    .kbd-row { display: flex; gap: 6px; width: 100%; justify-content: center; }
     .key {
-      min-width: 40px;
-      width: 44px;
+      flex: 1 1 40px;
       height: 46px;
       background: #4b5563;
       font-size: 12px;
       text-transform: uppercase;
+      border-radius: 4px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      transition: all 0.1s ease;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
     }
-    .key.large { width: 72px; }
+    .key:hover:not(:disabled) { background: #5b6472; }
+    .key:active:not(:disabled) { transform: scale(0.95); }
+    .key.large { flex: 2 1 60px; }
     .key.gray { background: #111827; color: #9ca3af; }
     .key.green { background: #16a34a; }
     .key.yellow { background: #ca8a04; }
     @media (max-width: 500px) {
-      .key { min-width: 32px; width: 34px; font-size: 11px; }
-      .key.large { width: 58px; }
+      .key { flex-basis: 32px; height: 42px; font-size: 11px; }
+      .key.large { flex-basis: 50px; }
       .hint-side { width: 38px; height: 86px; font-size: 10px; }
     }
     .overlay {
@@ -189,35 +200,15 @@
   </div>
 
   <script>
-    const INTERNAL_WORD_LIST = [
-      "about","above","acute","adapt","admit","after","again","agent","agree","ahead","alarm","album","alert","alike","alive","allow","alone","along","alter","among",
-      "anger","angle","angry","apart","apple","apply","arena","argue","arise","array","aside","asset","audio","audit","avoid","award","aware","awful","badly","baker",
-      "basic","basis","beach","beard","beast","begin","being","below","bench","birth","black","blade","blank","blast","blend","block","blood","board","boast","bonus",
-      "boost","bound","brain","brake","brand","brave","bread","break","brief","bring","broad","brown","build","built","buyer","cable","camel","canal","candy","carry",
-      "catch","cause","chain","chair","chalk","chart","chase","cheap","check","chest","chief","child","china","choir","civil","claim","class","clean","clear","climb",
-      "clock","close","cloud","coach","coast","color","count","court","cover","craft","crane","crash","cream","crime","cross","crowd","crown","curve","cycle","daily",
-      "dance","death","debut","delay","depth","dirty","doubt","draft","drama","dream","dress","drift","drill","drink","drive","drove","dying","eager","early","earth",
-      "eight","elite","empty","enemy","enjoy","enter","entry","equal","error","event","every","exact","exist","extra","faith","false","fault","fiber","field","fifth",
-      "fifty","fight","final","first","fixed","flash","fleet","floor","fluid","focus","force","forth","forty","forum","found","frame","frank","fraud","fresh","front",
-      "fruit","fully","funny","giant","glass","globe","glory","glove","grace","grade","grand","grant","graph","grass","great","green","greet","gross","group","grown",
-      "guard","guess","guest","guide","habit","happy","heart","heavy","hence","hobby","hotel","house","human","ideal","image","index","inner","input","issue","joint",
-      "judge","juice","knife","knock","label","labor","large","laser","later","laugh","layer","learn","lease","least","leave","legal","lemon","level","light","limit",
-      "links","liver","local","logic","loose","lower","lucky","lunch","lying","magic","major","maker","march","match","maybe","mayor","meant","media","metal","might",
-      "minor","minus","mixed","model","money","month","moral","motor","mount","mouse","mouth","movie","music","newly","night","noise","north","noted","novel","nurse",
-      "occur","ocean","offer","often","order","other","ought","outer","owner","panel","paper","party","peace","phase","phone","photo","piece","pilot","pitch","place",
-      "plain","plane","plant","plate","point","pound","power","press","price","pride","prime","print","prior","prize","proof","proud","prove","queen","quick","quiet",
-      "quite","radio","raise","range","rapid","ratio","reach","ready","refer","right","rival","river","rough","round","route","royal","rural","scale","scene","scope",
-      "score","sense","serve","seven","shade","shaft","shake","share","sharp","sheet","shelf","shell","shift","shirt","shock","shoot","short","shown","sight","since",
-      "sixth","sixty","sized","skill","sleep","slide","small","smart","smile","smoke","solid","solve","sound","south","space","spare","speak","speed","spend","spent",
-      "split","spoke","sport","staff","stage","stake","stand","start","state","steam","steel","stick","still","stock","stone","stood","store","storm","story","strip",
-      "stuck","study","stuff","style","sugar","suite","super","sweet","table","taken","taste","teach","teeth","terry","theme","there","thick","thing","think","third",
-      "those","three","throw","tight","times","tired","title","today","topic","total","touch","tough","tower","track","trade","train","treat","trend","trial","tried",
-      "tries","truck","trust","truth","twice","under","undue","union","unity","until","upper","upset","urban","usage","usual","valid","value","video","virus","visit",
-      "vital","voice","waste","watch","water","wheel","where","which","while","white","whole","whose","woman","world","worry","worth","would","wound","write","wrong",
-      "yield","young","youth"
-    ];
+    // Internal word list removed. Default will use external '16k.txt'.
 
-    const EXTERNAL_LISTS = ["knuth_5k.txt", "16k.txt"];
+    const EXTERNAL_LISTS = [
+        "6k.txt"
+        ,"16k.txt"
+        ,"knuth_5k.txt"
+        ,"wordle.txt"
+
+    ];
     const KEYBOARD_ROWS = [
       ["q","w","e","r","t","y","u","i","o","p"],
       ["a","s","d","f","g","h","j","k","l"],
@@ -225,8 +216,8 @@
     ];
 
     const state = {
-      listType: "standard",
-      cachedLists: { standard: INTERNAL_WORD_LIST },
+      listType: "16k.txt",
+      cachedLists: {},
       targetWord: "",
       guesses: [],
       currentGuess: "",
@@ -254,7 +245,7 @@
     }
 
     function activeList() {
-      return state.cachedLists[state.listType] || INTERNAL_WORD_LIST;
+      return state.cachedLists[state.listType] || [];
     }
 
     function showMessage(msg, duration = 2000) {
@@ -373,12 +364,11 @@
 
     function renderListButtons() {
       listButtonsEl.innerHTML = "";
-      const all = [{ key: "standard", label: "STANDARD" }, ...EXTERNAL_LISTS.map(name => ({ key: name, label: formatListLabel(name) }))];
-      for (const item of all) {
+      for (const name of EXTERNAL_LISTS) {
         const button = document.createElement("button");
-        button.textContent = item.label;
-        if (state.listType === item.key) button.classList.add("active");
-        button.addEventListener("click", () => setListType(item.key));
+        button.textContent = formatListLabel(name);
+        if (state.listType === name) button.classList.add("active");
+        button.addEventListener("click", () => setListType(name));
         listButtonsEl.appendChild(button);
       }
     }
@@ -554,7 +544,12 @@
     hintBtn.addEventListener("click", onHint);
 
     render();
-    initNewGame();
+    // On startup, load the default external list if not already cached.
+    if (state.listType && !state.cachedLists[state.listType]) {
+      loadListFile(state.listType);
+    } else {
+      initNewGame();
+    }
   </script>
 </body>
 </html>
