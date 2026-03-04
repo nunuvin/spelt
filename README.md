@@ -25,3 +25,7 @@ To run locally, clone the repository and open `index.html` in your browser.
 git clone https://github.com/nunuvin/spelt.git
 cd spelt
 ```
+## Word lists used:
+- [https://people.sc.fsu.edu/~jburkardt/datasets/words/words.html](https://people.sc.fsu.edu/~jburkardt/datasets/words/words.html) 
+- [https://github.com/tabatkins/wordle-list](https://github.com/tabatkins/wordle-list)
+- [https://github.com/darkermango/5-Letter-words/blob/main/words.txt ??](https://github.com/darkermango/5-Letter-words/blob/main/words.txt)
