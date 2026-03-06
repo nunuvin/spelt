@@ -210,6 +210,34 @@
       font-weight: 700;
       color: var(--text-color);
       font-size: 14px;
+      text-align: center;
+      padding: 0 8px;
+    }
+
+    .status .status-text {
+      display: inline;
+      line-height: 1.2;
+    }
+
+    .status a {
+      color: inherit;
+      text-decoration: none;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1px;
+    }
+    .status a:hover { border-bottom-color: var(--text-color); opacity: 1; }
+
+    .status .info {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      border: 1px solid var(--border);
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 900;
+      line-height: 1;
     }
 
     /* Game Board Area */
@@ -241,6 +269,65 @@
       grid-template-columns: repeat(5, var(--cell));
       gap: var(--gap);
     }
+
+    .row.with-info {
+      grid-template-columns: repeat(5, var(--cell)) auto;
+      align-items: center;
+    }
+
+    details.hint-info {
+      position: relative;
+      margin-left: 6px;
+      user-select: none;
+    }
+
+    details.hint-info summary {
+      list-style: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      height: 28px;
+      padding: 0 8px;
+      border: 1px solid var(--border);
+      border-radius: 9999px;
+      font-weight: 900;
+      font-size: 12px;
+      background: var(--surface);
+      color: var(--text-color);
+      opacity: 0.95;
+    }
+
+    details.hint-info summary::-webkit-details-marker { display: none; }
+    details.hint-info summary:hover { background: var(--border); opacity: 1; }
+
+    .hint-pop {
+      display: none;
+      position: absolute;
+      left: calc(100% + 8px);
+      top: 50%;
+      transform: translateY(-50%);
+      background: var(--bg-color);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px 12px;
+      white-space: nowrap;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+      z-index: 5;
+    }
+
+    details.hint-info[open] .hint-pop,
+    details.hint-info:hover .hint-pop {
+      display: block;
+    }
+
+    .hint-pop a {
+      color: inherit;
+      text-decoration: none;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1px;
+    }
+    .hint-pop a:hover { border-bottom-color: var(--text-color); opacity: 1; }
 
     .cell {
       width: var(--cell);
@@ -400,6 +487,20 @@
       border: 1px solid var(--border);
     }
 
+    .continue {
+      margin-top: 18px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text-color);
+      padding: 0 14px;
+      height: 40px;
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      border-radius: 10px;
+    }
+    .continue:hover { background: var(--border); }
+
     .next-round {
       margin-top: 24px;
       font-size: 12px;
@@ -454,12 +555,13 @@
       <h2 class="title" id="resultTitle"></h2>
       <div id="resultText"></div>
       <p class="subtle" id="nextRound"></p>
+      <button class="continue" id="continueBtn">Continue</button>
     </div>
   </div>
 
   <script>
     // Configuration
-    const EXTERNAL_LISTS = ["wordle.txt", "16k.txt", "knuth_5k.txt", "6k.txt"];
+    const EXTERNAL_LISTS = ["wordle.txt", "16k.txt", "knuth_5k.txt", "6k.txt", "aerospace_850.txt", "scrabble_sowpods_250k.txt"];
     const KEYBOARD_ROWS = [
       ["q","w","e","r","t","y","u","i","o","p"],
       ["a","s","d","f","g","h","j","k","l"],
@@ -469,6 +571,7 @@
     const state = {
       listType: "wordle.txt",
       cachedLists: {},
+      allWords: null,
       targetWord: "",
       guesses: [],
       currentGuess: "",
@@ -476,6 +579,7 @@
       countdown: null,
       loading: false,
       hintCount: 0,
+      hintRowIndices: [],
       messageTimer: null,
       countdownTimer: null,
       theme: localStorage.getItem('theme') || 'dark'
@@ -493,6 +597,7 @@
     const resultTitle = document.getElementById("resultTitle");
     const resultText = document.getElementById("resultText");
     const nextRound = document.getElementById("nextRound");
+    const continueBtn = document.getElementById("continueBtn");
 
     // Initialize Theme
     document.documentElement.setAttribute('data-theme', state.theme);
@@ -528,14 +633,116 @@
       return state.cachedLists[state.listType] || [];
     }
 
-    function showMessage(msg, duration = 2000) {
+    function escapeHtml(value) {
+      return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/\"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function setStatus({ text = "", html = "" } = {}, duration = 2000) {
       clearTimeout(state.messageTimer);
-      statusEl.textContent = msg || "";
+      if (html) statusEl.innerHTML = `<span class="status-text">${html}</span>`;
+      else statusEl.innerHTML = `<span class="status-text">${escapeHtml(text || "")}</span>`;
+
       if (duration > 0) {
         state.messageTimer = setTimeout(() => {
-          statusEl.textContent = "";
+          statusEl.innerHTML = "";
         }, duration);
       }
+    }
+
+    function showMessage(msg, duration = 2000) {
+      setStatus({ text: msg || "" }, duration);
+    }
+
+    function wordLinksHtml(word) {
+      const encodedWord = encodeURIComponent(word);
+      const wikiUrl = `https://en.wikipedia.org/wiki/${encodedWord}`;
+      const dictUrl = `https://wordnik.com/words/${encodedWord}`;
+      const yourDictUrl = `https://www.yourdictionary.com/${encodedWord}`;
+      return `
+        <div class="def-links">
+          <a href="${wikiUrl}" target="_blank" rel="noopener noreferrer">Wiki</a>
+          &nbsp;|&nbsp;
+          <a href="${dictUrl}" target="_blank" rel="noopener noreferrer">Wordnik</a>
+          &nbsp;|&nbsp;
+          <a href="${yourDictUrl}" target="_blank" rel="noopener noreferrer">YourDictionary</a>
+        </div>
+      `;
+    }
+
+    function wordLinksInlineHtml(word) {
+      const encodedWord = encodeURIComponent(word);
+      const wikiUrl = `https://en.wikipedia.org/wiki/${encodedWord}`;
+      const dictUrl = `https://wordnik.com/words/${encodedWord}`;
+      const yourDictUrl = `https://www.yourdictionary.com/${encodedWord}`;
+      return `
+        <a href="${wikiUrl}" target="_blank" rel="noopener noreferrer">Wiki</a>
+        &nbsp;|&nbsp;
+        <a href="${dictUrl}" target="_blank" rel="noopener noreferrer">Wordnik</a>
+        &nbsp;|&nbsp;
+        <a href="${yourDictUrl}" target="_blank" rel="noopener noreferrer">YourDictionary</a>
+      `;
+    }
+
+    function allKnownWords() {
+      if (state.allWords) return state.allWords;
+      const set = new Set();
+      for (const listName of Object.keys(state.cachedLists)) {
+        const words = state.cachedLists[listName] || [];
+        for (const word of words) set.add(word);
+      }
+      state.allWords = set;
+      return set;
+    }
+
+    async function fetchListWords(filename) {
+      const response = await fetch(`lists/${filename}`);
+      if (!response.ok) throw new Error("Missing word list");
+      const text = await response.text();
+      const words = text
+        .split(/[\s\n\r]+/)
+        .map(item => item.trim().toLowerCase())
+        .filter(item => /^[a-z]{5}$/.test(item));
+      if (!words.length) throw new Error("No valid words in list");
+      return words;
+    }
+
+    async function ensureListCached(filename) {
+      if (state.cachedLists[filename]) return;
+      const words = await fetchListWords(filename);
+      state.cachedLists[filename] = words;
+      state.allWords = null;
+    }
+
+    async function ensureAllListsCached() {
+      for (const filename of EXTERNAL_LISTS) {
+        if (!state.cachedLists[filename]) {
+          await ensureListCached(filename);
+        }
+      }
+    }
+
+    async function isValidGuessWord(word) {
+      if (allKnownWords().has(word)) return true;
+      const missing = EXTERNAL_LISTS.some(name => !state.cachedLists[name]);
+      if (!missing) return false;
+
+      state.loading = true;
+      setStatus({ text: "Checking word..." }, 0);
+      render();
+      try {
+        await ensureAllListsCached();
+      } catch (error) {
+        console.error(error);
+      } finally {
+        state.loading = false;
+        render();
+      }
+      return allKnownWords().has(word);
     }
 
     function getGuessResult(guess, target) {
@@ -591,16 +798,7 @@
       resultTitle.className = `title ${won ? "victory" : "defeat"}`;
 
       const word = state.targetWord;
-      const encodedWord = encodeURIComponent(word);
-      const wikiUrl = `https://en.wikipedia.org/wiki/${encodedWord}`;
-      const dictUrl = `https://wordnik.com/words/${encodedWord}`;
-      const linksHtml = `
-        <div class="def-links">
-          <a href="${wikiUrl}" target="_blank" rel="noopener noreferrer">Wiki</a>
-          &nbsp;|&nbsp;
-          <a href="${dictUrl}" target="_blank" rel="noopener noreferrer">Dictionary</a>
-        </div>
-      `;
+      const linksHtml = wordLinksHtml(word);
 
       if (won) {
         const attempts = state.guesses.filter(word => word !== "_____").length;
@@ -629,6 +827,21 @@
           if (score !== "empty") cell.classList.add(score);
           if (score !== "wasted") cell.textContent = char;
           rowEl.appendChild(cell);
+        }
+
+        if (state.hintRowIndices.includes(row) && state.guesses[row] && state.guesses[row] !== "_____") {
+          rowEl.classList.add("with-info");
+          const hintWord = state.guesses[row];
+          const details = document.createElement("details");
+          details.className = "hint-info";
+          const summary = document.createElement("summary");
+          summary.textContent = "(i)";
+          const pop = document.createElement("div");
+          pop.className = "hint-pop";
+          pop.innerHTML = wordLinksInlineHtml(hintWord);
+          details.appendChild(summary);
+          details.appendChild(pop);
+          rowEl.appendChild(details);
         }
         gridEl.appendChild(rowEl);
       }
@@ -721,7 +934,6 @@
         priceEl.innerHTML = `[ <span class="hint-cost-numeral">${roman}</span> ] row${rowsRequired > 1 ? 's' : ''}`;
       }
 
-      if (state.loading) statusEl.textContent = "Loading list...";
     }
 
     function initNewGame() {
@@ -732,6 +944,7 @@
       state.currentGuess = "";
       state.gameStatus = "playing";
       state.hintCount = 0;
+      state.hintRowIndices = [];
       state.countdown = null;
       clearInterval(state.countdownTimer);
       state.countdownTimer = null;
@@ -741,17 +954,12 @@
 
     async function loadListFile(filename) {
       state.loading = true;
+      setStatus({ text: "Loading list..." }, 0);
       render();
       try {
-        const response = await fetch(`lists/${filename}`);
-        if (!response.ok) throw new Error("Missing word list");
-        const text = await response.text();
-        const words = text
-          .split(/[\s\n\r]+/)
-          .map(item => item.trim().toLowerCase())
-          .filter(item => /^[a-z]{5}$/.test(item));
-        if (!words.length) throw new Error("No valid words in list");
+        const words = await fetchListWords(filename);
         state.cachedLists[filename] = words;
+        state.allWords = null;
         showMessage(`${formatListLabel(filename)} loaded`);
       } catch (error) {
         console.error(error);
@@ -766,10 +974,10 @@
     function checkWinLoss(lastGuess) {
       if (lastGuess === state.targetWord) {
         state.gameStatus = "won";
-        state.countdown = 5;
+        state.countdown = 10;
       } else if (state.guesses.length >= 6) {
         state.gameStatus = "lost";
-        state.countdown = 5;
+        state.countdown = 10;
       }
 
       if (state.countdown !== null) {
@@ -819,16 +1027,26 @@
       }
 
       const hintWord = hintWords[Math.floor(Math.random() * hintWords.length)];
+      const hintRowIndex = state.guesses.length;
       state.guesses.push(hintWord);
+      state.hintRowIndices.push(hintRowIndex);
       for (let count = 0; count < state.hintCount; count += 1) state.guesses.push("_____");
       state.hintCount += 1;
       state.currentGuess = "";
-      showMessage(`Hint used ${rowsRequired} row(s)`);
+      showMessage(`Hint used ${rowsRequired} row(s)`, 2000);
       checkWinLoss(hintWord);
       render();
     }
 
-    function onKeyPress(key) {
+    function onContinue() {
+      if (state.countdown === null) return;
+      clearInterval(state.countdownTimer);
+      state.countdownTimer = null;
+      state.countdown = null;
+      initNewGame();
+    }
+
+    async function onKeyPress(key) {
       if (state.gameStatus !== "playing" || state.loading) return;
 
       if (key === "Hint") {
@@ -847,12 +1065,14 @@
           showMessage("Not enough letters");
           return;
         }
-        if (!activeList().includes(state.currentGuess)) {
-          showMessage("Word not in list");
+        const guess = state.currentGuess;
+        const valid = await isValidGuessWord(guess);
+        if (!valid) {
+          showMessage("Word not in known lists");
           return;
         }
-        state.guesses.push(state.currentGuess);
-        const submitted = state.currentGuess;
+        state.guesses.push(guess);
+        const submitted = guess;
         state.currentGuess = "";
         checkWinLoss(submitted);
         render();
@@ -883,6 +1103,7 @@
 
     resetBtn.addEventListener("click", initNewGame);
     hintBtn.addEventListener("click", onHint);
+    continueBtn.addEventListener("click", onContinue);
 
     render();
     // On startup, load the default external list if not already cached.
